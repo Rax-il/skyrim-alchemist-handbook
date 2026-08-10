@@ -175,22 +175,31 @@ fn migrate_images_to_blob(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// Создаёт таблицы переводов (если их ещё нет) и наполняет их: сначала
-/// бэкфиллит lang='ru' из ТЕКУЩЕГО содержимого components/properties (то
-/// есть уже с учётом правок, внесённых пользователем через "Редактировать
-/// базу"), затем — из TRANSLATIONS (см. seed_translations.rs, сгенерирован
-/// tools/i18n) для остальных языков. TRANSLATIONS не содержит записей с
-/// lang == "ru" по построению (см. Global Constraints плана B1) — только
-/// не-русские языки.
+/// Создаёт таблицы переводов (если их ещё нет) и наполняет их. Всё внутри
+/// одной транзакции — раньше каждый INSERT/UPDATE коммитился отдельно, что
+/// на ~2000 строк давало заметную паузу при первом запуске (замерено: ~12
+/// секунд, ДО появления окна — совершенно незаметно для пользователя,
+/// который решит, что программа не запускается). Финальное ревью плана B1
+/// нашло это и ещё три связанных бага, все с общей причиной: миграция была
+/// "только-запись" (INSERT OR IGNORE) вместо самовосстанавливающейся.
 ///
-/// TRANSLATIONS — плоский список троек (ru_name, lang, text) без разметки
-/// "компонент/свойство"; принадлежность определяется тем, в какой из двух
-/// таблиц (components/properties) нашлось совпадение по имени — эти два
-/// множества имён не пересекаются.
-///
-/// Имя без соответствия в текущей БД (например "Смертная плоть" — плагин
-/// Plague of the Dead отсутствует в скачанном архиве официальных строк)
-/// пропускается без падения, как и в остальных migrate_*.
+/// Порядок внутри транзакции:
+/// 1. Чистит переводы для уже удалённых компонентов/свойств — components.id
+///    это alias для SQLite rowid без AUTOINCREMENT, значит id может
+///    переиспользоваться после удаления, и новый компонент иначе тихо
+///    унаследует чужие старые переводы.
+/// 2. lang='ru' — upsert из ТЕКУЩЕГО содержимого components/properties, а не
+///    INSERT OR IGNORE — иначе правки пользователя (описание/картинка можно
+///    менять через "Редактировать базу") после первого запуска навсегда
+///    расходятся с тем, что видно в остальных языках.
+/// 3. Остальные языки — полностью перестраиваются из TRANSLATIONS при каждом
+///    запуске (DELETE + INSERT, не OR IGNORE), потому что это стопроцентно
+///    сгенерированные данные без пользовательского ввода (description для
+///    не-ru пока всегда '') — иначе обновлённый seed_translations.rs
+///    (например, более точный перевод) никогда не долетит до уже
+///    установивших программу пользователей. ВАЖНО: если когда-нибудь
+///    появится редактирование описаний не на русском (план B4), эта
+///    перестройка должна измениться, чтобы не затирать пользовательский ввод.
 fn migrate_i18n(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS component_translations (
@@ -208,42 +217,75 @@ fn migrate_i18n(conn: &Connection) -> rusqlite::Result<()> {
         );",
     )?;
 
-    conn.execute(
-        "INSERT OR IGNORE INTO component_translations (component_id, lang, name, description)
-         SELECT id, 'ru', name, description FROM components",
+    let tx = conn.unchecked_transaction()?;
+
+    tx.execute(
+        "DELETE FROM component_translations WHERE component_id NOT IN (SELECT id FROM components)",
         [],
     )?;
-    conn.execute(
-        "INSERT OR IGNORE INTO property_translations (property_id, lang, name)
-         SELECT id, 'ru', name FROM properties",
+    tx.execute(
+        "DELETE FROM property_translations WHERE property_id NOT IN (SELECT id FROM properties)",
         [],
     )?;
 
+    // SQLite grammar note: "SELECT ... FROM tbl ON CONFLICT ..." is
+    // ambiguous with a join-constraint (it would parse "tbl ON CONFLICT..."
+    // as a join), and SQLite resolves that ambiguity in favor of the join —
+    // producing a "near DO: syntax error". The documented workaround is a
+    // WHERE clause on the SELECT so "ON CONFLICT" can't be mistaken for
+    // part of the FROM clause; see https://www.sqlite.org/lang_upsert.html.
+    tx.execute(
+        "INSERT INTO component_translations (component_id, lang, name, description)
+         SELECT id, 'ru', name, description FROM components WHERE true
+         ON CONFLICT(component_id, lang) DO UPDATE SET name = excluded.name, description = excluded.description",
+        [],
+    )?;
+    tx.execute(
+        "INSERT INTO property_translations (property_id, lang, name)
+         SELECT id, 'ru', name FROM properties WHERE true
+         ON CONFLICT(property_id, lang) DO UPDATE SET name = excluded.name",
+        [],
+    )?;
+
+    tx.execute("DELETE FROM component_translations WHERE lang <> 'ru'", [])?;
+    tx.execute("DELETE FROM property_translations WHERE lang <> 'ru'", [])?;
+
+    let mut component_ids: HashMap<String, i64> = HashMap::new();
+    {
+        let mut stmt = tx.prepare("SELECT id, name FROM components")?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            component_ids.insert(row.get(1)?, row.get(0)?);
+        }
+    }
+    let mut property_ids: HashMap<String, i64> = HashMap::new();
+    {
+        let mut stmt = tx.prepare("SELECT id, name FROM properties")?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            property_ids.insert(row.get(1)?, row.get(0)?);
+        }
+    }
+
     for (ru_name, lang, text) in TRANSLATIONS {
-        let component_id: Option<i64> = conn
-            .query_row("SELECT id FROM components WHERE name = ?1", params![ru_name], |r| r.get(0))
-            .optional()?;
-        if let Some(id) = component_id {
-            conn.execute(
-                "INSERT OR IGNORE INTO component_translations (component_id, lang, name, description)
+        if let Some(&id) = component_ids.get(*ru_name) {
+            tx.execute(
+                "INSERT INTO component_translations (component_id, lang, name, description)
                  VALUES (?1, ?2, ?3, '')",
                 params![id, lang, text],
             )?;
             continue;
         }
-
-        let property_id: Option<i64> = conn
-            .query_row("SELECT id FROM properties WHERE name = ?1", params![ru_name], |r| r.get(0))
-            .optional()?;
-        if let Some(id) = property_id {
-            conn.execute(
-                "INSERT OR IGNORE INTO property_translations (property_id, lang, name)
+        if let Some(&id) = property_ids.get(*ru_name) {
+            tx.execute(
+                "INSERT INTO property_translations (property_id, lang, name)
                  VALUES (?1, ?2, ?3)",
                 params![id, lang, text],
             )?;
         }
     }
 
+    tx.commit()?;
     Ok(())
 }
 
@@ -1354,6 +1396,169 @@ mod rare_curios_tests {
 
         assert_eq!(count_before, count_after, "повторная миграция задвоила component_translations");
         assert_eq!(prop_count_before, prop_count_after, "повторная миграция задвоила property_translations");
+
+        // Не только количество строк должно остаться прежним — содержимое
+        // тоже не должно повредиться повторным прогоном миграции.
+        let property_id: i64 = conn2
+            .query_row("SELECT id FROM properties WHERE name = ?1", params!["Бешенство"], |r| r.get(0))
+            .unwrap();
+        let en_name: String = conn2
+            .query_row(
+                "SELECT name FROM property_translations WHERE property_id = ?1 AND lang = 'en'",
+                params![property_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(en_name, "Frenzy", "повторная миграция повредила перевод");
+
+        drop(conn2);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Reviewer finding #2: бэкфилл lang='ru' был INSERT OR IGNORE — правка
+    /// описания пользователем через "Редактировать базу" (set_component_media)
+    /// после первого запуска навсегда расходилась с component_translations.
+    /// Теперь это upsert, обновляющийся при каждом ensure_db.
+    #[test]
+    fn migration_ru_upsert_reflects_user_edits() {
+        let db_path = temp_db_path("i18n_ru_upsert");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let component_id: i64 = conn
+            .query_row("SELECT id FROM components WHERE name = ?1", params!["Белянка"], |r| r.get(0))
+            .unwrap();
+        let (_, old_description) = component_media(&conn, "Белянка");
+
+        set_component_media(&conn, "Белянка", None, "новое описание после правки пользователя").unwrap();
+
+        drop(conn);
+        let conn2 = ensure_db(&db_path).unwrap();
+
+        let description: String = conn2
+            .query_row(
+                "SELECT description FROM component_translations WHERE component_id = ?1 AND lang = 'ru'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(description, "новое описание после правки пользователя");
+        assert_ne!(description, old_description);
+
+        drop(conn2);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Reviewer finding #3: не-ru переводы были INSERT OR IGNORE — если
+    /// seed_translations.rs перегенерируют с исправлением, уже запустившие
+    /// программу пользователи никогда не получат исправление. Теперь
+    /// не-ru языки полностью перестраиваются из TRANSLATIONS при каждом
+    /// ensure_db, так что "испорченная" (устаревшая) строка перезаписывается.
+    #[test]
+    fn migration_non_ru_rebuild_overwrites_stale_data() {
+        let db_path = temp_db_path("i18n_en_rebuild");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let component_id: i64 = conn
+            .query_row("SELECT id FROM components WHERE name = ?1", params!["Стеклянный окунь"], |r| r.get(0))
+            .unwrap();
+
+        conn.execute(
+            "UPDATE component_translations SET name = 'WRONG' WHERE lang = 'en' AND component_id = ?1",
+            params![component_id],
+        )
+        .unwrap();
+        let stale: String = conn
+            .query_row(
+                "SELECT name FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(stale, "WRONG");
+
+        drop(conn);
+        let conn2 = ensure_db(&db_path).unwrap();
+
+        let fixed: String = conn2
+            .query_row(
+                "SELECT name FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(fixed, "Glassfish", "устаревший en-перевод не был перезаписан заново из TRANSLATIONS");
+
+        drop(conn2);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Reviewer finding #4: components.id/properties.id — plain SQLite
+    /// rowid без AUTOINCREMENT, значит id переиспользуется после удаления
+    /// строки с максимальным id. Без явной чистки новый компонент, которому
+    /// достался переиспользованный id, тихо "наследовал" переводы удалённого
+    /// компонента. Теперь migrate_i18n сначала удаляет переводы для id, не
+    /// существующих в components/properties.
+    #[test]
+    fn migration_purges_orphaned_translations_on_rowid_reuse() {
+        let db_path = temp_db_path("i18n_rowid_reuse");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let max_id: i64 = conn.query_row("SELECT MAX(id) FROM components", [], |r| r.get(0)).unwrap();
+        let old_name: String = conn
+            .query_row("SELECT name FROM components WHERE id = ?1", params![max_id], |r| r.get(0))
+            .unwrap();
+
+        let old_translation_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM component_translations WHERE component_id = ?1",
+                params![max_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(old_translation_count > 0, "у удаляемого компонента должны быть переводы до удаления");
+
+        delete_component(&conn, &old_name).unwrap();
+
+        // SQLite переиспользует rowid максимального удалённого id для
+        // следующей вставки без явного значения id — новый компонент
+        // получит тот же max_id, что был у удалённого.
+        let props = [
+            "Бешенство".to_string(),
+            "Замедление".to_string(),
+            "Страх".to_string(),
+            "Паралич".to_string(),
+        ];
+        insert_component(&conn, "Новый компонент вместо удалённого", &props).unwrap();
+        let new_id: i64 = conn
+            .query_row(
+                "SELECT id FROM components WHERE name = ?1",
+                params!["Новый компонент вместо удалённого"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(new_id, max_id, "тест предполагает переиспользование rowid — иначе проверка ничего не доказывает");
+
+        drop(conn);
+        let conn2 = ensure_db(&db_path).unwrap();
+
+        let names_at_id: Vec<String> = {
+            let mut stmt = conn2
+                .prepare("SELECT name FROM component_translations WHERE component_id = ?1")
+                .unwrap();
+            let rows = stmt.query_map(params![new_id], |r| r.get::<_, String>(0)).unwrap();
+            rows.collect::<Result<_, _>>().unwrap()
+        };
+        assert!(
+            !names_at_id.iter().any(|n| n == &old_name),
+            "перевод удалённого компонента просочился в новый с переиспользованным id: {names_at_id:?}"
+        );
+        assert!(
+            names_at_id.iter().any(|n| n == "Новый компонент вместо удалённого"),
+            "у нового компонента должен появиться свой ru-перевод: {names_at_id:?}"
+        );
 
         drop(conn2);
         let _ = std::fs::remove_file(&db_path);
