@@ -14,9 +14,9 @@
 `match_translations.py` (сопоставление по `StringID` + перевод) →
 `generate_seed_translations.rs.py` (рендер результата в Rust-литералы).
 Ничего из этого не трогает `src-tauri/src/{db,commands,lib}.rs` — выход
-пайплайна (`seed_translations.rs`) в этом плане только генерируется и
-кладётся в `src-tauri/src/`, но не подключается к сборке (это уже задача
-плана B).
+пайплайна (`seed_translations.rs`) в этом плане только генерируется внутри
+`tools/i18n/` и **не** копируется в `src-tauri/src/` и не подключается к
+сборке (перенос файла и подключение к сборке — это уже задача плана B).
 
 **Tech Stack:** Python 3 (stdlib only — `struct`, `json`, `re`, `glob`, без
 внешних зависимостей вроде pytest, тесты — обычные assert-скрипты).
