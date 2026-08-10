@@ -489,26 +489,62 @@ fn migrate_addon_ids(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-pub fn load_properties(conn: &Connection) -> rusqlite::Result<Vec<String>> {
-    let mut stmt = conn.prepare("SELECT name FROM properties ORDER BY name")?;
-    let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+#[derive(Serialize, Clone)]
+pub struct PropertyInfo {
+    pub id: i64,
+    pub name: String,
+}
+
+#[derive(Serialize, Clone)]
+pub struct ComponentNameInfo {
+    pub id: i64,
+    pub name: String,
+}
+
+pub fn load_properties(conn: &Connection, lang: &str) -> rusqlite::Result<Vec<PropertyInfo>> {
+    let mut stmt = conn.prepare(
+        "SELECT p.id, pt.name
+         FROM properties p
+         JOIN property_translations pt ON pt.property_id = p.id AND pt.lang = ?1
+         ORDER BY pt.name",
+    )?;
+    let rows = stmt.query_map(params![lang], |r| Ok(PropertyInfo { id: r.get(0)?, name: r.get(1)? }))?;
     rows.collect()
 }
 
-pub fn load_property_types(conn: &Connection) -> rusqlite::Result<HashMap<String, String>> {
-    let mut stmt = conn.prepare("SELECT name, type FROM properties")?;
-    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
+pub fn load_property_types(conn: &Connection) -> rusqlite::Result<HashMap<i64, String>> {
+    let mut stmt = conn.prepare("SELECT id, type FROM properties")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?;
     let mut result = HashMap::new();
     for row in rows {
-        let (name, typ) = row?;
-        result.insert(name, typ);
+        let (id, typ) = row?;
+        result.insert(id, typ);
     }
     Ok(result)
 }
 
-pub fn load_component_names(conn: &Connection) -> rusqlite::Result<Vec<String>> {
-    let mut stmt = conn.prepare("SELECT name FROM components ORDER BY name")?;
-    let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+/// id -> переведённое название свойства на lang. Приватная — используется
+/// только внутри find_pairs/find_max_combinations для сборки строк
+/// результата с отступом (эффекты сочетания).
+fn load_property_names(conn: &Connection, lang: &str) -> rusqlite::Result<HashMap<i64, String>> {
+    let mut stmt = conn.prepare("SELECT property_id, name FROM property_translations WHERE lang = ?1")?;
+    let rows = stmt.query_map(params![lang], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?;
+    let mut result = HashMap::new();
+    for row in rows {
+        let (id, name) = row?;
+        result.insert(id, name);
+    }
+    Ok(result)
+}
+
+pub fn load_component_names(conn: &Connection, lang: &str) -> rusqlite::Result<Vec<ComponentNameInfo>> {
+    let mut stmt = conn.prepare(
+        "SELECT c.id, ct.name
+         FROM components c
+         JOIN component_translations ct ON ct.component_id = c.id AND ct.lang = ?1
+         ORDER BY ct.name",
+    )?;
+    let rows = stmt.query_map(params![lang], |r| Ok(ComponentNameInfo { id: r.get(0)?, name: r.get(1)? }))?;
     rows.collect()
 }
 
@@ -517,15 +553,24 @@ pub fn load_component_names(conn: &Connection) -> rusqlite::Result<Vec<String>> 
 /// "Компонент" в основном экране поиска. В отличие от load_component_names,
 /// который остаётся без фильтра для "Редактировать базу" (там нужен полный
 /// список независимо от текущих настроек фильтра).
-pub fn load_component_names_filtered(conn: &Connection, addons: &[Addon]) -> rusqlite::Result<Vec<String>> {
+pub fn load_component_names_filtered(conn: &Connection, addons: &[Addon], lang: &str) -> rusqlite::Result<Vec<ComponentNameInfo>> {
     if addons.is_empty() {
         return Ok(Vec::new());
     }
     let placeholders = addon_placeholders(addons);
-    let sql = format!("SELECT name FROM components WHERE addon IN ({placeholders}) ORDER BY name");
+    let sql = format!(
+        "SELECT c.id, ct.name
+         FROM components c
+         JOIN component_translations ct ON ct.component_id = c.id AND ct.lang = ?1
+         WHERE c.addon IN ({placeholders})
+         ORDER BY ct.name"
+    );
     let mut stmt = conn.prepare(&sql)?;
-    let values: Vec<&str> = addons.iter().map(|a| a.as_str()).collect();
-    let rows = stmt.query_map(rusqlite::params_from_iter(values), |r| r.get::<_, String>(0))?;
+    let mut values: Vec<&str> = vec![lang];
+    values.extend(addons.iter().map(|a| a.as_str()));
+    let rows = stmt.query_map(rusqlite::params_from_iter(values), |r| {
+        Ok(ComponentNameInfo { id: r.get(0)?, name: r.get(1)? })
+    })?;
     rows.collect()
 }
 
@@ -533,64 +578,74 @@ fn addon_placeholders(addons: &[Addon]) -> String {
     addons.iter().map(|_| "?").collect::<Vec<_>>().join(",")
 }
 
-pub fn component_properties(conn: &Connection, component_name: &str) -> rusqlite::Result<Vec<String>> {
+pub fn component_properties(conn: &Connection, component_id: i64, lang: &str) -> rusqlite::Result<Vec<String>> {
     let mut stmt = conn.prepare(
-        "SELECT p.name
-         FROM components c
-         JOIN component_properties cp ON cp.component_id = c.id
-         JOIN properties p ON p.id = cp.property_id
-         WHERE c.name = ?1
-         ORDER BY p.name",
+        "SELECT pt.name
+         FROM component_properties cp
+         JOIN property_translations pt ON pt.property_id = cp.property_id AND pt.lang = ?1
+         WHERE cp.component_id = ?2
+         ORDER BY pt.name",
     )?;
-    let rows = stmt.query_map(params![component_name], |r| r.get::<_, String>(0))?;
+    let rows = stmt.query_map(params![lang, component_id], |r| r.get::<_, String>(0))?;
     rows.collect()
 }
 
 #[derive(Serialize, Clone)]
 pub struct PropWithType {
+    pub id: i64,
     pub name: String,
     pub typ: String,
 }
 
 pub fn component_properties_with_types(
     conn: &Connection,
-    component_name: &str,
+    component_id: i64,
+    lang: &str,
 ) -> rusqlite::Result<Vec<PropWithType>> {
     let mut stmt = conn.prepare(
-        "SELECT p.name, p.type
-         FROM components c
-         JOIN component_properties cp ON cp.component_id = c.id
+        "SELECT p.id, pt.name, p.type
+         FROM component_properties cp
          JOIN properties p ON p.id = cp.property_id
-         WHERE c.name = ?1
-         ORDER BY p.name",
+         JOIN property_translations pt ON pt.property_id = p.id AND pt.lang = ?1
+         WHERE cp.component_id = ?2
+         ORDER BY pt.name",
     )?;
-    let rows = stmt.query_map(params![component_name], |r| {
+    let rows = stmt.query_map(params![lang, component_id], |r| {
         Ok(PropWithType {
-            name: r.get(0)?,
-            typ: r.get(1)?,
+            id: r.get(0)?,
+            name: r.get(1)?,
+            typ: r.get(2)?,
         })
     })?;
     rows.collect()
 }
 
-/// Возвращает (картинка как байты, если есть; описание). Картинка хранится
-/// прямо в БД (колонка image, BLOB) — никаких внешних файлов/ссылок при
-/// работе программы читать не нужно.
-pub fn component_media(conn: &Connection, component_name: &str) -> (Option<Vec<u8>>, String) {
-    conn.query_row(
-        "SELECT image, description FROM components WHERE name = ?1",
-        params![component_name],
-        |r| Ok((r.get::<_, Option<Vec<u8>>>(0)?, r.get::<_, String>(1)?)),
-    )
-    .unwrap_or_default()
+/// Возвращает (картинка как байты, если есть; переведённое на lang
+/// описание). Картинка не зависит от языка — хранится прямо в БД (колонка
+/// image, BLOB), читается по id независимо от lang. Описание читается из
+/// component_translations, а не из legacy-колонки components.description
+/// напрямую — см. Global Constraints про согласованность с migrate_i18n.
+pub fn component_media(conn: &Connection, component_id: i64, lang: &str) -> (Option<Vec<u8>>, String) {
+    let image: Option<Vec<u8>> = conn
+        .query_row("SELECT image FROM components WHERE id = ?1", params![component_id], |r| r.get(0))
+        .unwrap_or(None);
+    let description: String = conn
+        .query_row(
+            "SELECT description FROM component_translations WHERE component_id = ?1 AND lang = ?2",
+            params![component_id, lang],
+            |r| r.get(0),
+        )
+        .unwrap_or_default();
+    (image, description)
 }
 
-/// Дополнение-источник компонента (см. addons.rs) по имени.
-pub fn component_addon(conn: &Connection, component_name: &str) -> rusqlite::Result<Option<Addon>> {
+/// Дополнение-источник компонента (см. addons.rs) по id. Не зависит от
+/// языка.
+pub fn component_addon(conn: &Connection, component_id: i64) -> rusqlite::Result<Option<Addon>> {
     let raw: Option<String> = conn
         .query_row(
-            "SELECT addon FROM components WHERE name = ?1",
-            params![component_name],
+            "SELECT addon FROM components WHERE id = ?1",
+            params![component_id],
             |r| r.get(0),
         )
         .optional()?;
@@ -703,77 +758,80 @@ pub fn update_component_properties(
     Ok(())
 }
 
-struct ComponentInfo {
+struct SearchComponent {
+    id: i64,
     name: String,
-    props: HashSet<String>,
+    props: HashSet<i64>,
 }
 
 /// addons — ингредиенты каких дополнений включать (см. Addon в addons.rs);
 /// пустой список означает "ничего не включено" (осознанное состояние,
 /// когда пользователь снял в Настройках все галочки), а не "фильтр не
 /// задан" — поэтому сразу возвращаем пустой результат, не обращаясь к БД.
-fn load_components_with_properties(conn: &Connection, addons: &[Addon]) -> rusqlite::Result<Vec<ComponentInfo>> {
+/// props — id свойств (не имена): сопоставление сочетаний должно работать
+/// независимо от языка, а имя — только для отображения.
+fn load_components_with_properties(conn: &Connection, addons: &[Addon], lang: &str) -> rusqlite::Result<Vec<SearchComponent>> {
     if addons.is_empty() {
         return Ok(Vec::new());
     }
     let placeholders = addon_placeholders(addons);
     let sql = format!(
-        "SELECT c.id, c.name, p.name
+        "SELECT c.id, ct.name, cp.property_id
          FROM components c
+         JOIN component_translations ct ON ct.component_id = c.id AND ct.lang = ?1
          JOIN component_properties cp ON cp.component_id = c.id
-         JOIN properties p ON p.id = cp.property_id
          WHERE c.addon IN ({placeholders})
          ORDER BY c.id"
     );
     let mut stmt = conn.prepare(&sql)?;
-    let values: Vec<&str> = addons.iter().map(|a| a.as_str()).collect();
+    let mut values: Vec<&str> = vec![lang];
+    values.extend(addons.iter().map(|a| a.as_str()));
     let mut rows = stmt.query(rusqlite::params_from_iter(values))?;
 
     let mut order: Vec<i64> = Vec::new();
-    let mut by_id: HashMap<i64, ComponentInfo> = HashMap::new();
+    let mut by_id: HashMap<i64, SearchComponent> = HashMap::new();
     while let Some(row) = rows.next()? {
         let id: i64 = row.get(0)?;
         let name: String = row.get(1)?;
-        let prop: String = row.get(2)?;
+        let prop_id: i64 = row.get(2)?;
         let entry = by_id.entry(id).or_insert_with(|| {
             order.push(id);
-            ComponentInfo {
-                name: name.clone(),
-                props: HashSet::new(),
-            }
+            SearchComponent { id, name: name.clone(), props: HashSet::new() }
         });
-        entry.props.insert(prop);
+        entry.props.insert(prop_id);
     }
 
     Ok(order.into_iter().map(|id| by_id.remove(&id).unwrap()).collect())
 }
 
-/// Одна найденная смесь: компоненты (для фильтрации) и готовая строка.
+/// Одна найденная смесь: id компонентов (для фильтрации на фронтенде по
+/// enabledComponents) и готовая переведённая строка для отображения.
 #[derive(Serialize, Clone)]
 pub struct CombinationResult {
-    pub components: Vec<String>,
+    pub components: Vec<i64>,
     pub line: String,
 }
 
 /// Ищет смеси из 2 или 3 компонентов, где каждое выбранное свойство
-/// встречается минимум у двух компонентов смеси.
+/// встречается минимум у двух компонентов смеси. selected — id свойств.
 pub fn find_combinations(
     conn: &Connection,
-    selected: &[String],
+    selected: &[i64],
     filter: &str,
     addons: &[Addon],
+    lang: &str,
 ) -> rusqlite::Result<Vec<CombinationResult>> {
     if selected.is_empty() {
         return Ok(Vec::new());
     }
 
-    let components = load_components_with_properties(conn, addons)?;
+    let components = load_components_with_properties(conn, addons, lang)?;
     let prop_types = load_property_types(conn)?;
     let n = components.len();
 
     let satisfies_selected = |group: &[usize]| -> bool {
-        for prop in selected {
-            let count = group.iter().filter(|&&idx| components[idx].props.contains(prop)).count();
+        for prop_id in selected {
+            let count = group.iter().filter(|&&idx| components[idx].props.contains(prop_id)).count();
             if count < 2 {
                 return false;
             }
@@ -785,17 +843,17 @@ pub fn find_combinations(
         if filter.is_empty() {
             return true;
         }
-        let mut counts: HashMap<&str, i32> = HashMap::new();
+        let mut counts: HashMap<i64, i32> = HashMap::new();
         for &idx in group {
-            for prop in &components[idx].props {
-                *counts.entry(prop.as_str()).or_insert(0) += 1;
+            for &prop_id in &components[idx].props {
+                *counts.entry(prop_id).or_insert(0) += 1;
             }
         }
-        for (prop, count) in &counts {
+        for (prop_id, count) in &counts {
             if *count < 2 {
                 continue;
             }
-            if prop_types.get(*prop).map(|s| s.as_str()) != Some(filter) {
+            if prop_types.get(prop_id).map(|s| s.as_str()) != Some(filter) {
                 return false;
             }
         }
@@ -818,9 +876,10 @@ pub fn find_combinations(
     };
 
     let describe = |group: &[usize]| -> CombinationResult {
-        let names: Vec<String> = group.iter().map(|&idx| components[idx].name.clone()).collect();
+        let ids: Vec<i64> = group.iter().map(|&idx| components[idx].id).collect();
+        let names: Vec<&str> = group.iter().map(|&idx| components[idx].name.as_str()).collect();
         let line = names.join(" + ");
-        CombinationResult { components: names, line }
+        CombinationResult { components: ids, line }
     };
 
     let mut results = Vec::new();
@@ -853,21 +912,22 @@ pub fn find_combinations(
 /// max_results — ограничение количества пар в результате (после сортировки
 /// по убыванию числа общих свойств), см. поле "Макс. кол-во сочетаний" в
 /// Настройках.
-pub fn find_pairs(conn: &Connection, filter: &str, addons: &[Addon], max_results: usize) -> rusqlite::Result<Vec<String>> {
-    let components = load_components_with_properties(conn, addons)?;
+pub fn find_pairs(conn: &Connection, filter: &str, addons: &[Addon], max_results: usize, lang: &str) -> rusqlite::Result<Vec<String>> {
+    let components = load_components_with_properties(conn, addons, lang)?;
     let prop_types = load_property_types(conn)?;
+    let prop_names = load_property_names(conn, lang)?;
     let n = components.len();
 
     struct PairResult {
         a: String,
         b: String,
-        common: Vec<String>,
+        common: Vec<i64>,
     }
 
     let mut pairs = Vec::new();
     for i in 0..n {
         for j in (i + 1)..n {
-            let mut common: Vec<String> = components[i]
+            let mut common: Vec<i64> = components[i]
                 .props
                 .iter()
                 .filter(|p| components[j].props.contains(*p))
@@ -884,7 +944,11 @@ pub fn find_pairs(conn: &Connection, filter: &str, addons: &[Addon], max_results
                     continue;
                 }
             }
-            common.sort();
+            common.sort_by(|a, b| {
+                let na = prop_names.get(a).map(|s| s.as_str()).unwrap_or("");
+                let nb = prop_names.get(b).map(|s| s.as_str()).unwrap_or("");
+                na.cmp(nb)
+            });
             pairs.push(PairResult {
                 a: components[i].name.clone(),
                 b: components[j].name.clone(),
@@ -908,8 +972,9 @@ pub fn find_pairs(conn: &Connection, filter: &str, addons: &[Addon], max_results
             lines.push(String::new());
         }
         lines.push(format!("{} + {}", p.a, p.b));
-        for prop in &p.common {
-            lines.push(format!("    {}", prop));
+        for prop_id in &p.common {
+            let name = prop_names.get(prop_id).map(|s| s.as_str()).unwrap_or("?");
+            lines.push(format!("    {}", name));
         }
     }
     Ok(lines)
@@ -932,14 +997,16 @@ pub fn find_max_combinations(
     filter: &str,
     addons: &[Addon],
     max_results: usize,
+    lang: &str,
 ) -> rusqlite::Result<Vec<String>> {
-    let components = load_components_with_properties(conn, addons)?;
+    let components = load_components_with_properties(conn, addons, lang)?;
     let prop_types = load_property_types(conn)?;
+    let prop_names = load_property_names(conn, lang)?;
     let n = components.len();
 
     struct TripleResult {
         names: [String; 3],
-        effects: Vec<String>,
+        effects: Vec<i64>,
     }
 
     let mut triples = Vec::new();
@@ -947,14 +1014,14 @@ pub fn find_max_combinations(
         for j in (i + 1)..n {
             for k in (j + 1)..n {
                 let group = [i, j, k];
-                let mut counts: HashMap<&str, i32> = HashMap::new();
+                let mut counts: HashMap<i64, i32> = HashMap::new();
                 for &idx in &group {
-                    for prop in &components[idx].props {
-                        *counts.entry(prop.as_str()).or_insert(0) += 1;
+                    for &prop_id in &components[idx].props {
+                        *counts.entry(prop_id).or_insert(0) += 1;
                     }
                 }
-                let mut effects: Vec<String> =
-                    counts.into_iter().filter(|&(_, count)| count >= 2).map(|(p, _)| p.to_string()).collect();
+                let mut effects: Vec<i64> =
+                    counts.into_iter().filter(|&(_, count)| count >= 2).map(|(p, _)| p).collect();
                 if effects.len() < MAX_COMBO_MIN_EFFECTS {
                     continue;
                 }
@@ -966,7 +1033,11 @@ pub fn find_max_combinations(
                         continue;
                     }
                 }
-                effects.sort();
+                effects.sort_by(|a, b| {
+                    let na = prop_names.get(a).map(|s| s.as_str()).unwrap_or("");
+                    let nb = prop_names.get(b).map(|s| s.as_str()).unwrap_or("");
+                    na.cmp(nb)
+                });
                 triples.push(TripleResult {
                     names: [
                         components[i].name.clone(),
@@ -988,8 +1059,9 @@ pub fn find_max_combinations(
             lines.push(String::new());
         }
         lines.push(t.names.join(" + "));
-        for effect in &t.effects {
-            lines.push(format!("    {}", effect));
+        for prop_id in &t.effects {
+            let name = prop_names.get(prop_id).map(|s| s.as_str()).unwrap_or("?");
+            lines.push(format!("    {}", name));
         }
     }
     Ok(lines)
@@ -1010,17 +1082,28 @@ mod rare_curios_tests {
         std::env::temp_dir().join(format!("alch_db_test_{label}_{}.db", std::process::id()))
     }
 
+    fn component_id_by_name(conn: &Connection, name: &str) -> i64 {
+        conn.query_row("SELECT id FROM components WHERE name = ?1", params![name], |r| r.get(0))
+            .unwrap()
+    }
+
+    fn property_id_by_name(conn: &Connection, name: &str) -> i64 {
+        conn.query_row("SELECT id FROM properties WHERE name = ?1", params![name], |r| r.get(0))
+            .unwrap()
+    }
+
     #[test]
     fn migration_adds_rare_curios() {
         let db_path = temp_db_path("rare_curios");
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
 
-        let names = load_component_names(&conn).unwrap();
-        assert!(names.contains(&"Шляпки гифоломы".to_string()), "Rare Curios компонент не добавлен");
+        let names = load_component_names(&conn, "ru").unwrap();
+        assert!(names.iter().any(|c| c.name == "Шляпки гифоломы"), "Rare Curios компонент не добавлен");
         assert_eq!(names.len(), 110 + 52 + 18 - 2, "неверное общее число компонентов после миграции");
 
-        let props = component_properties(&conn, "Шляпки гифоломы").unwrap();
+        let id = component_id_by_name(&conn, "Шляпки гифоломы");
+        let props = component_properties(&conn, id, "ru").unwrap();
         let mut expected = vec![
             "Бешенство".to_string(),
             "Регенерация запаса сил".to_string(),
@@ -1032,14 +1115,12 @@ mod rare_curios_tests {
         got.sort();
         assert_eq!(got, expected);
 
-        let (_, description) = component_media(&conn, "Шляпки гифоломы");
+        let (_, description) = component_media(&conn, id, "ru");
         assert!(description.contains("Rare Curios"), "описание не упоминает Rare Curios");
 
-        // Повторный вызов ensure_db (как при втором запуске программы) не
-        // должен задваивать компоненты.
         drop(conn);
         let conn2 = ensure_db(&db_path).unwrap();
-        let names2 = load_component_names(&conn2).unwrap();
+        let names2 = load_component_names(&conn2, "ru").unwrap();
         assert_eq!(names2.len(), 110 + 52 + 18 - 2, "повторная миграция задвоила компоненты");
 
         drop(conn2);
@@ -1051,16 +1132,14 @@ mod rare_curios_tests {
         let db_path = temp_db_path("creations");
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
-        let names = load_component_names(&conn).unwrap();
+        let names = load_component_names(&conn, "ru").unwrap();
 
-        // 110 базовых + 52 Rare Curios + 18 из творений, минус 2 дубля
-        // ("Гнилая чешуйка" и "Огненный гриб" совпадают с Rare Curios).
         assert_eq!(names.len(), 110 + 52 + 18 - 2);
+        assert!(names.iter().any(|c| c.name == "Смертная плоть"));
+        assert!(names.iter().any(|c| c.name == "Стеклянный окунь"));
 
-        assert!(names.contains(&"Смертная плоть".to_string()));
-        assert!(names.contains(&"Стеклянный окунь".to_string()));
-
-        let props = component_properties(&conn, "Стеклянный окунь").unwrap();
+        let id = component_id_by_name(&conn, "Стеклянный окунь");
+        let props = component_properties(&conn, id, "ru").unwrap();
         assert!(props.contains(&"Повышение искусства убеждать".to_string()));
 
         drop(conn);
@@ -1073,15 +1152,16 @@ mod rare_curios_tests {
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
 
+        let id = component_id_by_name(&conn, "Шляпки гифоломы");
         let bytes = vec![1u8, 2, 3, 4, 5];
         set_component_media(&conn, "Шляпки гифоломы", Some(&bytes), "новое описание").unwrap();
-        let (image, description) = component_media(&conn, "Шляпки гифоломы");
+        let (image, description) = component_media(&conn, id, "ru");
         assert_eq!(image, Some(bytes));
         assert_eq!(description, "новое описание");
 
         // None — картинка убирается (например, пользователь очистил поле).
         set_component_media(&conn, "Шляпки гифоломы", None, "новое описание").unwrap();
-        let (image2, _) = component_media(&conn, "Шляпки гифоломы");
+        let (image2, _) = component_media(&conn, id, "ru");
         assert_eq!(image2, None);
 
         drop(conn);
@@ -1094,28 +1174,21 @@ mod rare_curios_tests {
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
 
-        assert_eq!(component_addon(&conn, "Виноград джазби").unwrap(), Some(Addon::BaseGame));
-        assert_eq!(component_addon(&conn, "Жёлтый горноцвет").unwrap(), Some(Addon::Dawnguard));
-        assert_eq!(component_addon(&conn, "Вредозобник").unwrap(), Some(Addon::Dragonborn));
-        assert_eq!(component_addon(&conn, "Лососёвая икра").unwrap(), Some(Addon::Hearthfire));
-        assert_eq!(component_addon(&conn, "Шляпки гифоломы").unwrap(), Some(Addon::RareCurios));
-        assert_eq!(component_addon(&conn, "Золотая рыбка").unwrap(), Some(Addon::Fishing));
-        assert_eq!(component_addon(&conn, "Кричалка").unwrap(), Some(Addon::SaintsAndSeducers));
-        assert_eq!(component_addon(&conn, "Смертная плоть").unwrap(), Some(Addon::PlagueOfTheDead));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Виноград джазби")).unwrap(), Some(Addon::BaseGame));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Жёлтый горноцвет")).unwrap(), Some(Addon::Dawnguard));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Вредозобник")).unwrap(), Some(Addon::Dragonborn));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Лососёвая икра")).unwrap(), Some(Addon::Hearthfire));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Шляпки гифоломы")).unwrap(), Some(Addon::RareCurios));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Золотая рыбка")).unwrap(), Some(Addon::Fishing));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Кричалка")).unwrap(), Some(Addon::SaintsAndSeducers));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Смертная плоть")).unwrap(), Some(Addon::PlagueOfTheDead));
 
-        // "Гнилая чешуйка" и "Огненный гриб" — общие имена между Rare
-        // Curios и "Святыми и соблазнителями"; реальная строка в базе — от
-        // Rare Curios (см. комментарий у migrate_addon_ids), поэтому и
-        // addon должен остаться Addon::RareCurios, а не переехать на
-        // Addon::SaintsAndSeducers.
-        assert_eq!(component_addon(&conn, "Гнилая чешуйка").unwrap(), Some(Addon::RareCurios));
-        assert_eq!(component_addon(&conn, "Огненный гриб").unwrap(), Some(Addon::RareCurios));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Гнилая чешуйка")).unwrap(), Some(Addon::RareCurios));
+        assert_eq!(component_addon(&conn, component_id_by_name(&conn, "Огненный гриб")).unwrap(), Some(Addon::RareCurios));
 
-        // Повторная миграция (как при втором запуске) не должна ничего
-        // сломать в разметке.
         drop(conn);
         let conn2 = ensure_db(&db_path).unwrap();
-        assert_eq!(component_addon(&conn2, "Гнилая чешуйка").unwrap(), Some(Addon::RareCurios));
+        assert_eq!(component_addon(&conn2, component_id_by_name(&conn2, "Гнилая чешуйка")).unwrap(), Some(Addon::RareCurios));
 
         drop(conn2);
         let _ = std::fs::remove_file(&db_path);
@@ -1134,7 +1207,8 @@ mod rare_curios_tests {
             "Паралич".to_string(),
         ];
         insert_component(&conn, "Тестовый ингредиент", &props).unwrap();
-        assert_eq!(component_addon(&conn, "Тестовый ингредиент").unwrap(), Some(Addon::UserAdded));
+        let id = component_id_by_name(&conn, "Тестовый ингредиент");
+        assert_eq!(component_addon(&conn, id).unwrap(), Some(Addon::UserAdded));
 
         drop(conn);
         let _ = std::fs::remove_file(&db_path);
@@ -1146,33 +1220,28 @@ mod rare_curios_tests {
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
 
-        // Пустой список дополнений — осознанное "ничего не включено", а не
-        // "фильтр не задан": и поиск сочетаний, и список компонентов, и
-        // парные сочетания должны сразу вернуть пусто, без похода в SQL.
-        let empty_names = load_component_names_filtered(&conn, &[]).unwrap();
+        let beshenstvo_id = property_id_by_name(&conn, "Бешенство");
+
+        let empty_names = load_component_names_filtered(&conn, &[], "ru").unwrap();
         assert!(empty_names.is_empty());
-        let empty_combos = find_combinations(&conn, &["Бешенство".to_string()], "", &[]).unwrap();
+        let empty_combos = find_combinations(&conn, &[beshenstvo_id], "", &[], "ru").unwrap();
         assert!(empty_combos.is_empty());
-        let empty_pairs = find_pairs(&conn, "", &[], usize::MAX).unwrap();
+        let empty_pairs = find_pairs(&conn, "", &[], usize::MAX, "ru").unwrap();
         assert!(empty_pairs.is_empty());
 
-        // Только Rare Curios: "Шляпки гифоломы" — среди её свойств
-        // "Бешенство" (Яд), которое есть минимум у двух ингредиентов Rare
-        // Curios ("Дреугский воск" тоже им обладает) — комбинации должны
-        // находиться, и все имена в них — компоненты Rare Curios.
         let only_rare_curios = [Addon::RareCurios];
-        let names = load_component_names_filtered(&conn, &only_rare_curios).unwrap();
+        let names = load_component_names_filtered(&conn, &only_rare_curios, "ru").unwrap();
         assert_eq!(names.len(), 52, "в Rare Curios должно быть 52 компонента");
-        assert!(names.contains(&"Шляпки гифоломы".to_string()));
+        assert!(names.iter().any(|c| c.name == "Шляпки гифоломы"));
 
-        let combos = find_combinations(&conn, &["Бешенство".to_string()], "", &only_rare_curios).unwrap();
+        let combos = find_combinations(&conn, &[beshenstvo_id], "", &only_rare_curios, "ru").unwrap();
         assert!(!combos.is_empty(), "должны найтись сочетания внутри Rare Curios");
         for c in &combos {
-            for name in &c.components {
+            for &id in &c.components {
                 assert_eq!(
-                    component_addon(&conn, name).unwrap(),
+                    component_addon(&conn, id).unwrap(),
                     Some(Addon::RareCurios),
-                    "в результат просочился компонент не из Rare Curios: {name}"
+                    "в результат просочился компонент не из Rare Curios: id={id}"
                 );
             }
         }
@@ -1188,11 +1257,9 @@ mod rare_curios_tests {
         let conn = ensure_db(&db_path).unwrap();
 
         let all_addons = Addon::ALL;
-        let lines = find_max_combinations(&conn, "", &all_addons, usize::MAX).unwrap();
+        let lines = find_max_combinations(&conn, "", &all_addons, usize::MAX, "ru").unwrap();
         assert!(!lines.is_empty(), "должны найтись тройки с 4+ эффектами");
 
-        // Построчный вывод разбираем на блоки по образцу find_pairs (блоки
-        // разделены пустой строкой).
         let mut blocks: Vec<Vec<&str>> = vec![Vec::new()];
         for line in &lines {
             if line.is_empty() {
@@ -1215,25 +1282,23 @@ mod rare_curios_tests {
             effect_counts.push(effects.len());
         }
 
-        // Отсортировано по убыванию числа эффектов.
         let mut sorted = effect_counts.clone();
         sorted.sort_by(|a, b| b.cmp(a));
         assert_eq!(effect_counts, sorted);
 
-        // Фильтр "Яд" — все эффекты в каждой найденной тройке должны быть ядами.
         let prop_types = load_property_types(&conn).unwrap();
-        let poison_lines = find_max_combinations(&conn, "Яд", &all_addons, usize::MAX).unwrap();
+        let poison_lines = find_max_combinations(&conn, "Яд", &all_addons, usize::MAX, "ru").unwrap();
         assert!(!poison_lines.is_empty());
         for line in &poison_lines {
             if line.is_empty() || !line.starts_with("    ") {
                 continue;
             }
-            let prop = line.trim();
-            assert_eq!(prop_types.get(prop).map(|s| s.as_str()), Some("Яд"));
+            let prop_name = line.trim();
+            let prop_id = property_id_by_name(&conn, prop_name);
+            assert_eq!(prop_types.get(&prop_id).map(|s| s.as_str()), Some("Яд"));
         }
 
-        // Пустой список дополнений — осознанно пусто, без похода в SQL.
-        let empty = find_max_combinations(&conn, "", &[], usize::MAX).unwrap();
+        let empty = find_max_combinations(&conn, "", &[], usize::MAX, "ru").unwrap();
         assert!(empty.is_empty());
 
         drop(conn);
@@ -1255,20 +1320,18 @@ mod rare_curios_tests {
 
         let all_addons = Addon::ALL;
 
-        let unlimited_pairs = find_pairs(&conn, "", &all_addons, usize::MAX).unwrap();
+        let unlimited_pairs = find_pairs(&conn, "", &all_addons, usize::MAX, "ru").unwrap();
         let total_pairs = count_blocks(&unlimited_pairs);
         assert!(total_pairs > 2, "для теста нужно больше пар, чем лимит");
-        let limited_pairs = find_pairs(&conn, "", &all_addons, 2).unwrap();
+        let limited_pairs = find_pairs(&conn, "", &all_addons, 2, "ru").unwrap();
         assert_eq!(count_blocks(&limited_pairs), 2);
 
-        let unlimited_triples = find_max_combinations(&conn, "", &all_addons, usize::MAX).unwrap();
+        let unlimited_triples = find_max_combinations(&conn, "", &all_addons, usize::MAX, "ru").unwrap();
         let total_triples = count_blocks(&unlimited_triples);
         assert!(total_triples > 2, "для теста нужно больше троек, чем лимит");
-        let limited_triples = find_max_combinations(&conn, "", &all_addons, 2).unwrap();
+        let limited_triples = find_max_combinations(&conn, "", &all_addons, 2, "ru").unwrap();
         assert_eq!(count_blocks(&limited_triples), 2);
 
-        // Обрезанный результат — это ровно префикс полного (та же
-        // сортировка, просто взяли первые max_results записей).
         assert_eq!(limited_pairs, unlimited_pairs[..limited_pairs.len()]);
         assert_eq!(limited_triples, unlimited_triples[..limited_triples.len()]);
 
@@ -1293,7 +1356,7 @@ mod rare_curios_tests {
             )
             .unwrap();
         assert_eq!(name, "Белянка");
-        let (_, expected_description) = component_media(&conn, "Белянка");
+        let (_, expected_description) = component_media(&conn, component_id, "ru");
         assert_eq!(description, expected_description);
 
         let property_id: i64 = conn
@@ -1428,7 +1491,7 @@ mod rare_curios_tests {
         let component_id: i64 = conn
             .query_row("SELECT id FROM components WHERE name = ?1", params!["Белянка"], |r| r.get(0))
             .unwrap();
-        let (_, old_description) = component_media(&conn, "Белянка");
+        let (_, old_description) = component_media(&conn, component_id, "ru");
 
         set_component_media(&conn, "Белянка", None, "новое описание после правки пользователя").unwrap();
 
