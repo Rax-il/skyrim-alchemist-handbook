@@ -40,13 +40,30 @@ def _plugin_path(strings_dir: str, plugin: str, lang: str) -> str:
     return os.path.join(strings_dir, f"{plugin}_{suffix}.strings")
 
 
+# Cache of parsed ru plugin files, keyed by (ru_strings_dir, plugin), so that
+# repeated resolve_id() calls against the same ru_strings_dir (e.g. once per
+# name from translate_all) don't re-parse the same .strings files from disk
+# every time. A missing file is cached as None (distinct from an empty-but-
+# present file, which parses to {}) so its absence is remembered too. Keyed
+# by the full ru_strings_dir path, so different directories never collide.
+_ru_plugin_cache: dict[tuple[str, str], dict[int, str] | None] = {}
+
+
+def _parse_ru_plugin(ru_strings_dir: str, plugin: str) -> dict[int, str] | None:
+    key = (ru_strings_dir, plugin)
+    if key not in _ru_plugin_cache:
+        path = _plugin_path(ru_strings_dir, plugin, "ru")
+        _ru_plugin_cache[key] = parse_strings(path) if os.path.exists(path) else None
+    return _ru_plugin_cache[key]
+
+
 def resolve_id(ru_name: str, ru_strings_dir: str) -> tuple[str, int] | None:
     parsed_by_plugin: dict[str, dict[int, str]] = {}
     for plugin in KNOWN_PLUGINS:
-        path = _plugin_path(ru_strings_dir, plugin, "ru")
-        if not os.path.exists(path):
+        strings = _parse_ru_plugin(ru_strings_dir, plugin)
+        if strings is None:
             continue
-        parsed_by_plugin[plugin] = parse_strings(path)
+        parsed_by_plugin[plugin] = strings
 
     for plugin, strings in parsed_by_plugin.items():
         for sid, text in strings.items():
