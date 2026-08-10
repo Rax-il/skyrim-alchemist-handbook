@@ -82,7 +82,7 @@ const LANGUAGE_OPTIONS = [
   { value: "es", label: "🇪🇸 Español" },
   { value: "pl", label: "🇵🇱 Polski" },
   { value: "ja", label: "🇯🇵 日本語" },
-  { value: "zh", label: "🇨🇳 中文" },
+  { value: "zh-Hant", label: "🇨🇳 中文" },
 ];
 
 export function SettingsModal({
