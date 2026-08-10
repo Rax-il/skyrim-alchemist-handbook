@@ -27,7 +27,8 @@ LANG_SUFFIX = {
     "es": "spanish",
     "pl": "polish",
     "ja": "japanese",
-    "zh": "chinese",
+    "zh-Hant": "chinese",  # Bethesda's Chinese localization is Traditional
+    # Chinese, not generic "Chinese" — see 2026-08-10 final review of Plan A.
 }
 
 
