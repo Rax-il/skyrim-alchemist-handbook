@@ -11,6 +11,7 @@ Language/
 # регенерируются скриптами, в репозитории не нужны.
 tools/i18n/*.json
 tools/i18n/seed_translations.rs
+tools/i18n/__pycache__/
 
 # Легаси-артефакт: рантайм всегда кладёт актуальный settings.json рядом с exe.
 /alchemist_settings.json
