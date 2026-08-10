@@ -1,0 +1,24 @@
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Кнопки строки меню ("Файл", "О программе") — минималистичный стиль, как
+   в нативном меню egui, а не крупная Mantine-кнопка. */
+.menu-bar-button {
+  background: transparent;
+  border: none;
+  padding: calc(4px * var(--mantine-scale)) calc(10px * var(--mantine-scale));
+  font-size: calc(13px * var(--mantine-scale));
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--mantine-color-text);
+}
+.menu-bar-button:hover {
+  background: var(--mantine-color-gray-1);
+}

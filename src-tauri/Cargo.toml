@@ -1,0 +1,42 @@
+[package]
+name = "alchemist"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "alchemist_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+# По умолчанию — режим production: приложение берёт фронтенд из встроенных
+# ассетов (dist/), а не пытается стучаться на dev-сервер Vite.
+# `tauri dev` сам подставляет `--no-default-features`, когда devUrl — это URL,
+# так что hot-reload в dev-режиме продолжает работать как раньше.
+#
+# ВАЖНО: обычный `npm run tauri build` подставляет эту фичу автоматически
+# через tauri-cli, поэтому раньше её отсутствие было незаметно. Но при сборке
+# напрямую через `cargo build --release` или `cargo xwin build` (в обход
+# tauri-cli — так собираем под Windows) фича НЕ подставляется, и получившийся
+# бинарник ведёт себя как dev-сборка: пытается подключиться к
+# http://localhost:1420 и падает с "Could not connect to localhost:
+# Connection refused". Явное объявление здесь чинит это для любого способа
+# сборки. НЕ УДАЛЯТЬ.
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-window-state = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# bundled: SQLite-движок компилируется прямо в бинарник, как и в исходной
+# egui-версии — никаких системных библиотек SQLite на целевой машине не нужно.
+rusqlite = { version = "0.31", features = ["bundled"] }
+base64 = "0.22"
+
+[profile.release]
+opt-level = 2

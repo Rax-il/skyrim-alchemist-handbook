@@ -1,0 +1,16 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+.claude/
+
+# Скачанные архивы официальной локализации Bethesda — не для репозитория.
+Language/
+
+# Промежуточные артефакты офлайн-пайплайна локализации (tools/i18n) —
+# регенерируются скриптами, в репозитории не нужны.
+tools/i18n/*.json
+tools/i18n/seed_translations.rs
+
+# Легаси-артефакт: рантайм всегда кладёт актуальный settings.json рядом с exe.
+/alchemist_settings.json
