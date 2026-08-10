@@ -35,6 +35,37 @@ def normalize(text: str) -> str:
     return text.lower().replace("ё", "е")
 
 
+# Known cases where multiple StringIDs share the exact same Russian text but
+# resolve to different official English text — picked by hand after manual
+# verification against the real game files (see final review, 2026-08-10).
+# Keyed by ru_name -> (plugin, string_id).
+#
+# On the real 239-name dataset, 100 names have more than one exact-matching
+# StringID across KNOWN_PLUGINS. For the vast majority of those, the
+# candidate IDs presumably share the same effective English text, so the
+# arbitrary "first match" pick below is harmless. These four are the only
+# ones hand-confirmed to actually diverge in meaning; if a future name is
+# found to diverge too, verify it against the real strings files and add it
+# here rather than building general ambiguity-detection tooling.
+OVERRIDES: dict[str, tuple[str, int]] = {
+    # 24187 = "Slaughterfish Egg Nest" (a world-object nest), the wrong pick
+    # by iteration order. 27849 = "Slaughterfish Egg", the alchemy ingredient.
+    "Икра рыбы-убийцы": ("skyrim", 27849),
+    # 26 candidate StringIDs share this ru text: 1 malformed (leading-space
+    # " Magic Resistance"), 5 clean "Magic Resistance", 18 "Resist Magic".
+    # 22468 is the lowest-numbered "Resist Magic" id (the majority/clean
+    # text) and has full translations across all target languages.
+    "Сопротивление магии": ("skyrim", 22468),
+    # 13507 = "Magicka Damage" (wrong pick by iteration order). 52613 =
+    # "Damage Magicka", matching the verb-first naming pattern already used
+    # for the sibling property "Урон здоровью" -> "Damage Health".
+    "Урон магии": ("skyrim", 52613),
+    # 6510 = "Stamina Damage" (wrong pick by iteration order). 14785 =
+    # "Damage Stamina", same verb-first pattern as above.
+    "Урон запасу сил": ("skyrim", 14785),
+}
+
+
 def _plugin_path(strings_dir: str, plugin: str, lang: str) -> str:
     suffix = LANG_SUFFIX[lang]
     return os.path.join(strings_dir, f"{plugin}_{suffix}.strings")
@@ -58,6 +89,9 @@ def _parse_ru_plugin(ru_strings_dir: str, plugin: str) -> dict[int, str] | None:
 
 
 def resolve_id(ru_name: str, ru_strings_dir: str) -> tuple[str, int] | None:
+    if ru_name in OVERRIDES:
+        return OVERRIDES[ru_name]
+
     parsed_by_plugin: dict[str, dict[int, str]] = {}
     for plugin in KNOWN_PLUGINS:
         strings = _parse_ru_plugin(ru_strings_dir, plugin)
@@ -65,10 +99,13 @@ def resolve_id(ru_name: str, ru_strings_dir: str) -> tuple[str, int] | None:
             continue
         parsed_by_plugin[plugin] = strings
 
+    exact_matches: list[tuple[str, int]] = []
     for plugin, strings in parsed_by_plugin.items():
         for sid, text in strings.items():
             if text == ru_name:
-                return plugin, sid
+                exact_matches.append((plugin, sid))
+    if exact_matches:
+        return exact_matches[0]
 
     target = normalize(ru_name)
     for plugin, strings in parsed_by_plugin.items():
@@ -105,7 +142,7 @@ def translate_all(
         for lang in langs:
             text = get_lang_plugin(lang, plugin).get(sid)
             if text is not None:
-                per_lang[lang] = text
+                per_lang[lang] = text.strip()
         translations[name] = per_lang
 
     return translations, unmatched
@@ -133,5 +170,22 @@ if __name__ == "__main__":
     print(f"Сопоставлено: {len(translations)}/{len(all_names)}", file=sys.stderr)
     if unmatched:
         print(f"Не найдено ({len(unmatched)}): {unmatched}", file=sys.stderr)
+
+    # Count actual translated values, not just matched ru_names: OVERRIDES
+    # entries resolve their StringID without touching disk, so on a totally
+    # bogus strings_root a handful of override names can still end up in
+    # `translations` even though every per-lang lookup came back empty (the
+    # lang .strings files don't exist at that path either). Checking
+    # len(translations) alone would miss that and let a broken invocation
+    # through with an empty-but-well-formed seed_translations.rs downstream.
+    total_translated_values = sum(len(v) for v in translations.values())
+    if total_translated_values == 0:
+        print(
+            "Ошибка: ничего не сопоставлено (0 переводов) — проверьте strings_root "
+            f"({strings_root!r}): возможно, там нет каталога ru/strings/ или папок "
+            "с нужными языками",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     print(json.dumps({"translations": translations, "unmatched": unmatched}, ensure_ascii=False, indent=2))
