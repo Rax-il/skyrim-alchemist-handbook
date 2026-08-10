@@ -6,6 +6,7 @@ mod layout;
 mod paths;
 mod rare_curios;
 mod seed_data;
+mod seed_translations;
 
 use commands::AppState;
 use std::sync::Mutex;

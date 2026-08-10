@@ -14,6 +14,7 @@ use crate::creations::{
 };
 use crate::rare_curios::{RARE_CURIOS_DESCRIPTION, RARE_CURIOS_IMAGES, RARE_CURIOS_INGREDIENTS, RARE_CURIOS_PROPERTIES};
 use crate::seed_data::{DAWNGUARD_INGREDIENTS, DRAGONBORN_INGREDIENTS, HEARTHFIRE_INGREDIENTS, INGREDIENTS, MEDIA, PROPERTIES};
+use crate::seed_translations::TRANSLATIONS;
 
 pub const TYPE_BENEFIT: &str = "Улучшение";
 pub const TYPE_POISON: &str = "Яд";
@@ -34,6 +35,7 @@ pub fn ensure_db(path: &Path) -> rusqlite::Result<Connection> {
     migrate_creations(&conn)?;
     migrate_addon_ids(&conn)?;
     migrate_images_to_blob(&conn)?;
+    migrate_i18n(&conn)?;
     Ok(conn)
 }
 
@@ -167,6 +169,78 @@ fn migrate_images_to_blob(conn: &Connection) -> rusqlite::Result<()> {
     for (id, image_url) in targets {
         if let Ok(bytes) = std::fs::read(&image_url) {
             conn.execute("UPDATE components SET image = ?1 WHERE id = ?2", params![bytes, id])?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Создаёт таблицы переводов (если их ещё нет) и наполняет их: сначала
+/// бэкфиллит lang='ru' из ТЕКУЩЕГО содержимого components/properties (то
+/// есть уже с учётом правок, внесённых пользователем через "Редактировать
+/// базу"), затем — из TRANSLATIONS (см. seed_translations.rs, сгенерирован
+/// tools/i18n) для остальных языков. TRANSLATIONS не содержит записей с
+/// lang == "ru" по построению (см. Global Constraints плана B1) — только
+/// не-русские языки.
+///
+/// TRANSLATIONS — плоский список троек (ru_name, lang, text) без разметки
+/// "компонент/свойство"; принадлежность определяется тем, в какой из двух
+/// таблиц (components/properties) нашлось совпадение по имени — эти два
+/// множества имён не пересекаются.
+///
+/// Имя без соответствия в текущей БД (например "Смертная плоть" — плагин
+/// Plague of the Dead отсутствует в скачанном архиве официальных строк)
+/// пропускается без падения, как и в остальных migrate_*.
+fn migrate_i18n(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS component_translations (
+            component_id INTEGER NOT NULL,
+            lang         TEXT NOT NULL,
+            name         TEXT NOT NULL,
+            description  TEXT NOT NULL DEFAULT '',
+            PRIMARY KEY (component_id, lang)
+        );
+        CREATE TABLE IF NOT EXISTS property_translations (
+            property_id INTEGER NOT NULL,
+            lang        TEXT NOT NULL,
+            name        TEXT NOT NULL,
+            PRIMARY KEY (property_id, lang)
+        );",
+    )?;
+
+    conn.execute(
+        "INSERT OR IGNORE INTO component_translations (component_id, lang, name, description)
+         SELECT id, 'ru', name, description FROM components",
+        [],
+    )?;
+    conn.execute(
+        "INSERT OR IGNORE INTO property_translations (property_id, lang, name)
+         SELECT id, 'ru', name FROM properties",
+        [],
+    )?;
+
+    for (ru_name, lang, text) in TRANSLATIONS {
+        let component_id: Option<i64> = conn
+            .query_row("SELECT id FROM components WHERE name = ?1", params![ru_name], |r| r.get(0))
+            .optional()?;
+        if let Some(id) = component_id {
+            conn.execute(
+                "INSERT OR IGNORE INTO component_translations (component_id, lang, name, description)
+                 VALUES (?1, ?2, ?3, '')",
+                params![id, lang, text],
+            )?;
+            continue;
+        }
+
+        let property_id: Option<i64> = conn
+            .query_row("SELECT id FROM properties WHERE name = ?1", params![ru_name], |r| r.get(0))
+            .optional()?;
+        if let Some(id) = property_id {
+            conn.execute(
+                "INSERT OR IGNORE INTO property_translations (property_id, lang, name)
+                 VALUES (?1, ?2, ?3)",
+                params![id, lang, text],
+            )?;
         }
     }
 
@@ -1157,6 +1231,131 @@ mod rare_curios_tests {
         assert_eq!(limited_triples, unlimited_triples[..limited_triples.len()]);
 
         drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn migration_populates_ru_translations_from_current_columns() {
+        let db_path = temp_db_path("i18n_ru_backfill");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let component_id: i64 = conn
+            .query_row("SELECT id FROM components WHERE name = ?1", params!["Белянка"], |r| r.get(0))
+            .unwrap();
+        let (name, description): (String, String) = conn
+            .query_row(
+                "SELECT name, description FROM component_translations WHERE component_id = ?1 AND lang = 'ru'",
+                params![component_id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(name, "Белянка");
+        let (_, expected_description) = component_media(&conn, "Белянка");
+        assert_eq!(description, expected_description);
+
+        let property_id: i64 = conn
+            .query_row("SELECT id FROM properties WHERE name = ?1", params!["Бешенство"], |r| r.get(0))
+            .unwrap();
+        let prop_name: String = conn
+            .query_row(
+                "SELECT name FROM property_translations WHERE property_id = ?1 AND lang = 'ru'",
+                params![property_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(prop_name, "Бешенство");
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn migration_populates_translations_from_seed_translations() {
+        let db_path = temp_db_path("i18n_translations");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let property_id: i64 = conn
+            .query_row("SELECT id FROM properties WHERE name = ?1", params!["Бешенство"], |r| r.get(0))
+            .unwrap();
+        let en_name: String = conn
+            .query_row(
+                "SELECT name FROM property_translations WHERE property_id = ?1 AND lang = 'en'",
+                params![property_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(en_name, "Frenzy");
+
+        let component_id: i64 = conn
+            .query_row("SELECT id FROM components WHERE name = ?1", params!["Стеклянный окунь"], |r| r.get(0))
+            .unwrap();
+        let en_component_name: String = conn
+            .query_row(
+                "SELECT name FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(en_component_name, "Glassfish");
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn migration_skips_name_with_no_official_translation() {
+        let db_path = temp_db_path("i18n_unmatched");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let component_id: i64 = conn
+            .query_row("SELECT id FROM components WHERE name = ?1", params!["Смертная плоть"], |r| r.get(0))
+            .unwrap();
+        let translation_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM component_translations WHERE component_id = ?1",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        // Только ru-бэкфилл — плагин Plague of the Dead отсутствует в
+        // скачанном архиве официальных строк, перевода на другие языки нет.
+        assert_eq!(translation_count, 1);
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn migration_is_idempotent() {
+        let db_path = temp_db_path("i18n_idempotent");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let count_before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM component_translations", [], |r| r.get(0))
+            .unwrap();
+        let prop_count_before: i64 = conn
+            .query_row("SELECT COUNT(*) FROM property_translations", [], |r| r.get(0))
+            .unwrap();
+        assert!(count_before > 200, "подозрительно мало строк переводов компонентов после миграции");
+
+        drop(conn);
+        let conn2 = ensure_db(&db_path).unwrap();
+
+        let count_after: i64 = conn2
+            .query_row("SELECT COUNT(*) FROM component_translations", [], |r| r.get(0))
+            .unwrap();
+        let prop_count_after: i64 = conn2
+            .query_row("SELECT COUNT(*) FROM property_translations", [], |r| r.get(0))
+            .unwrap();
+
+        assert_eq!(count_before, count_after, "повторная миграция задвоила component_translations");
+        assert_eq!(prop_count_before, prop_count_after, "повторная миграция задвоила property_translations");
+
+        drop(conn2);
         let _ = std::fs::remove_file(&db_path);
     }
 }
