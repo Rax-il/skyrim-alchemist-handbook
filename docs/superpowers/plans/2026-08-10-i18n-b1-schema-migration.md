@@ -115,7 +115,7 @@ Run: `mv "$HOME/Рабочий стол/alchemist-tauri-strings-src/zh" "$HOME/�
 
 Run (из `tools/i18n/`):
 ```bash
-python3 extract_ru_names.py .. > ru_names.json
+python3 extract_ru_names.py ../.. > ru_names.json
 python3 match_translations.py ru_names.json "$HOME/Рабочий стол/alchemist-tauri-strings-src" en,fr,de,it,es,pl,ja,zh-Hant > translations.json
 python3 generate_seed_translations.py translations.json > seed_translations.rs
 ```
