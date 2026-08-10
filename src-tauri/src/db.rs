@@ -653,23 +653,40 @@ pub fn component_addon(conn: &Connection, component_id: i64) -> rusqlite::Result
 }
 
 /// Сохраняет картинку (байты выбранного пользователем файла — либо None,
-/// чтобы убрать картинку) и описание компонента.
+/// чтобы убрать картинку) и описание компонента. Пишет и в legacy-колонку
+/// components.description (источник для бэкфилла migrate_i18n при
+/// следующем запуске — см. B1), и напрямую обновляет component_translations
+/// для lang='ru' — иначе правка не была бы видна до перезапуска программы.
+/// Редактирование сейчас всегда происходит на русском (lang='ru') —
+/// поведение при выбранном другом языке не определено этим планом, это
+/// отдельная задача (B4, UX редактирования при нескольких языках).
 pub fn set_component_media(
     conn: &Connection,
-    name: &str,
+    id: i64,
     image_bytes: Option<&[u8]>,
     description: &str,
 ) -> rusqlite::Result<()> {
     conn.execute(
-        "UPDATE components SET image = ?1, description = ?2 WHERE name = ?3",
-        params![image_bytes, description, name],
+        "UPDATE components SET image = ?1, description = ?2 WHERE id = ?3",
+        params![image_bytes, description, id],
+    )?;
+    conn.execute(
+        "UPDATE component_translations SET description = ?1 WHERE component_id = ?2 AND lang = 'ru'",
+        params![description, id],
     )?;
     Ok(())
 }
 
-pub fn component_exists(conn: &Connection, name: &str) -> rusqlite::Result<bool> {
+/// Проверка на дубликат при создании нового компонента — в рамках
+/// конкретного языка: создающий ингредиент на английском не должен
+/// натыкаться на совпадения с русскими названиями других компонентов.
+pub fn component_exists(conn: &Connection, name: &str, lang: &str) -> rusqlite::Result<bool> {
     let id: Option<i64> = conn
-        .query_row("SELECT id FROM components WHERE name = ?1", params![name], |r| r.get(0))
+        .query_row(
+            "SELECT component_id FROM component_translations WHERE lang = ?1 AND name = ?2",
+            params![lang, name],
+            |r| r.get(0),
+        )
         .optional()?;
     Ok(id.is_some())
 }
@@ -677,77 +694,65 @@ pub fn component_exists(conn: &Connection, name: &str) -> rusqlite::Result<bool>
 /// Новый компонент, добавленный через "Редактировать базу", всегда
 /// помечается Addon::UserAdded явно (не полагаемся на DEFAULT колонки) —
 /// это единственный путь, которым в базе вообще может появиться такая
-/// пометка (см. addons.rs).
-pub fn insert_component(conn: &Connection, name: &str, prop_names: &[String; 4]) -> rusqlite::Result<()> {
+/// пометка (см. addons.rs). Имя пишется и в legacy-колонку components.name
+/// (источник, из которого migrate_i18n бэкфиллит lang='ru' при следующем
+/// запуске — см. B1), и напрямую в component_translations для lang, на
+/// котором ингредиент создан — иначе созданный только что компонент не
+/// отображался бы до перезапуска программы. Возвращает id новой записи.
+pub fn insert_component(
+    conn: &Connection,
+    name: &str,
+    lang: &str,
+    prop_ids: &[i64; 4],
+) -> rusqlite::Result<i64> {
     conn.execute(
         "INSERT INTO components (name, addon) VALUES (?1, ?2)",
         params![name, Addon::UserAdded.as_str()],
     )?;
     let component_id = conn.last_insert_rowid();
-    for prop_name in prop_names {
-        let prop_name = prop_name.trim();
-        let property_id: i64 = conn.query_row(
-            "SELECT id FROM properties WHERE name = ?1",
-            params![prop_name],
-            |r| r.get(0),
-        )?;
+
+    conn.execute(
+        "INSERT INTO component_translations (component_id, lang, name, description) VALUES (?1, ?2, ?3, '')",
+        params![component_id, lang, name],
+    )?;
+
+    for &property_id in prop_ids {
         conn.execute(
             "INSERT INTO component_properties (component_id, property_id) VALUES (?1, ?2)",
             params![component_id, property_id],
         )?;
     }
+    Ok(component_id)
+}
+
+/// Удаляет компонент вместе со всеми его связями (какие свойства выбраны)
+/// и переводами — это делает то же, что миграция migrate_i18n делает при
+/// следующем запуске (см. B1, "orphan purge"), но сразу, в той же сессии:
+/// без этого повторное создание компонента в этой же сессии (SQLite
+/// переиспользует освободившийся rowid) могло бы унаследовать переводы
+/// удалённого компонента на других языках раньше следующего перезапуска.
+pub fn delete_component(conn: &Connection, id: i64) -> rusqlite::Result<()> {
+    conn.execute("DELETE FROM component_properties WHERE component_id = ?1", params![id])?;
+    conn.execute("DELETE FROM component_translations WHERE component_id = ?1", params![id])?;
+    conn.execute("DELETE FROM components WHERE id = ?1", params![id])?;
     Ok(())
 }
 
-pub fn rename_component(conn: &Connection, old_name: &str, new_name: &str) -> rusqlite::Result<()> {
-    conn.execute(
-        "UPDATE components SET name = ?1 WHERE name = ?2",
-        params![new_name, old_name],
-    )?;
-    Ok(())
-}
-
-pub fn delete_component(conn: &Connection, name: &str) -> rusqlite::Result<()> {
-    let component_id: i64 = conn.query_row(
-        "SELECT id FROM components WHERE name = ?1",
-        params![name],
-        |r| r.get(0),
-    )?;
-    conn.execute(
-        "DELETE FROM component_properties WHERE component_id = ?1",
-        params![component_id],
-    )?;
-    conn.execute("DELETE FROM components WHERE id = ?1", params![component_id])?;
-    Ok(())
-}
-
+/// prop_ids — id уже существующих свойств; какой из 4 слотов пуст/невалиден
+/// решает фронтенд (Select не даёт отправить форму без выбора) — эта
+/// функция доверяет, что все 4 id валидны.
 pub fn update_component_properties(
     conn: &Connection,
-    component_name: &str,
-    prop_names: &[String; 4],
+    component_id: i64,
+    prop_ids: &[i64; 4],
 ) -> Result<(), String> {
-    let component_id: i64 = conn
-        .query_row(
-            "SELECT id FROM components WHERE name = ?1",
-            params![component_name],
-            |r| r.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-
     conn.execute(
         "DELETE FROM component_properties WHERE component_id = ?1",
         params![component_id],
     )
     .map_err(|e| e.to_string())?;
 
-    for (i, name) in prop_names.iter().enumerate() {
-        let name = name.trim();
-        if name.is_empty() {
-            return Err(format!("свойство {} не может быть пустым", i + 1));
-        }
-        let property_id: i64 = conn
-            .query_row("SELECT id FROM properties WHERE name = ?1", params![name], |r| r.get(0))
-            .map_err(|e| e.to_string())?;
+    for &property_id in prop_ids {
         conn.execute(
             "INSERT INTO component_properties (component_id, property_id) VALUES (?1, ?2)",
             params![component_id, property_id],
@@ -1151,16 +1156,15 @@ mod rare_curios_tests {
         let db_path = temp_db_path("set_media");
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
-
         let id = component_id_by_name(&conn, "Шляпки гифоломы");
+
         let bytes = vec![1u8, 2, 3, 4, 5];
-        set_component_media(&conn, "Шляпки гифоломы", Some(&bytes), "новое описание").unwrap();
+        set_component_media(&conn, id, Some(&bytes), "новое описание").unwrap();
         let (image, description) = component_media(&conn, id, "ru");
         assert_eq!(image, Some(bytes));
         assert_eq!(description, "новое описание");
 
-        // None — картинка убирается (например, пользователь очистил поле).
-        set_component_media(&conn, "Шляпки гифоломы", None, "новое описание").unwrap();
+        set_component_media(&conn, id, None, "новое описание").unwrap();
         let (image2, _) = component_media(&conn, id, "ru");
         assert_eq!(image2, None);
 
@@ -1201,14 +1205,13 @@ mod rare_curios_tests {
         let conn = ensure_db(&db_path).unwrap();
 
         let props = [
-            "Бешенство".to_string(),
-            "Замедление".to_string(),
-            "Страх".to_string(),
-            "Паралич".to_string(),
+            property_id_by_name(&conn, "Бешенство"),
+            property_id_by_name(&conn, "Замедление"),
+            property_id_by_name(&conn, "Страх"),
+            property_id_by_name(&conn, "Паралич"),
         ];
-        insert_component(&conn, "Тестовый ингредиент", &props).unwrap();
-        let id = component_id_by_name(&conn, "Тестовый ингредиент");
-        assert_eq!(component_addon(&conn, id).unwrap(), Some(Addon::UserAdded));
+        let new_id = insert_component(&conn, "Тестовый ингредиент", "ru", &props).unwrap();
+        assert_eq!(component_addon(&conn, new_id).unwrap(), Some(Addon::UserAdded));
 
         drop(conn);
         let _ = std::fs::remove_file(&db_path);
@@ -1488,12 +1491,10 @@ mod rare_curios_tests {
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
 
-        let component_id: i64 = conn
-            .query_row("SELECT id FROM components WHERE name = ?1", params!["Белянка"], |r| r.get(0))
-            .unwrap();
+        let component_id = component_id_by_name(&conn, "Белянка");
         let (_, old_description) = component_media(&conn, component_id, "ru");
 
-        set_component_media(&conn, "Белянка", None, "новое описание после правки пользователя").unwrap();
+        set_component_media(&conn, component_id, None, "новое описание после правки пользователя").unwrap();
 
         drop(conn);
         let conn2 = ensure_db(&db_path).unwrap();
@@ -1583,26 +1584,40 @@ mod rare_curios_tests {
             .unwrap();
         assert!(old_translation_count > 0, "у удаляемого компонента должны быть переводы до удаления");
 
-        delete_component(&conn, &old_name).unwrap();
+        delete_component(&conn, max_id).unwrap();
+
+        // delete_component теперь сама чистит component_translations сразу,
+        // без ожидания следующего перезапуска (см. её комментарий) —
+        // проверяем это в той же сессии, до какой-либо вставки.
+        let count_right_after_delete: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM component_translations WHERE component_id = ?1",
+                params![max_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count_right_after_delete, 0, "delete_component должна сразу чистить переводы удалённого id");
 
         // SQLite переиспользует rowid максимального удалённого id для
         // следующей вставки без явного значения id — новый компонент
         // получит тот же max_id, что был у удалённого.
         let props = [
-            "Бешенство".to_string(),
-            "Замедление".to_string(),
-            "Страх".to_string(),
-            "Паралич".to_string(),
+            property_id_by_name(&conn, "Бешенство"),
+            property_id_by_name(&conn, "Замедление"),
+            property_id_by_name(&conn, "Страх"),
+            property_id_by_name(&conn, "Паралич"),
         ];
-        insert_component(&conn, "Новый компонент вместо удалённого", &props).unwrap();
-        let new_id: i64 = conn
+        let new_id = insert_component(&conn, "Новый компонент вместо удалённого", "ru", &props).unwrap();
+        assert_eq!(new_id, max_id, "тест предполагает переиспользование rowid — иначе проверка ничего не доказывает");
+
+        let new_translation_count: i64 = conn
             .query_row(
-                "SELECT id FROM components WHERE name = ?1",
-                params!["Новый компонент вместо удалённого"],
+                "SELECT COUNT(*) FROM component_translations WHERE component_id = ?1",
+                params![new_id],
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(new_id, max_id, "тест предполагает переиспользование rowid — иначе проверка ничего не доказывает");
+        assert_eq!(new_translation_count, 1, "у нового компонента должен быть ровно один (ru) перевод, без следов старого");
 
         drop(conn);
         let conn2 = ensure_db(&db_path).unwrap();
@@ -1624,6 +1639,57 @@ mod rare_curios_tests {
         );
 
         drop(conn2);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn update_component_properties_replaces_existing_links() {
+        let db_path = temp_db_path("update_props");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let props = [
+            property_id_by_name(&conn, "Бешенство"),
+            property_id_by_name(&conn, "Замедление"),
+            property_id_by_name(&conn, "Страх"),
+            property_id_by_name(&conn, "Паралич"),
+        ];
+        let id = insert_component(&conn, "Тестовый ингредиент 2", "ru", &props).unwrap();
+
+        let new_props = [
+            property_id_by_name(&conn, "Водное дыхание"),
+            property_id_by_name(&conn, "Невидимость"),
+            property_id_by_name(&conn, "Урон здоровью"),
+            property_id_by_name(&conn, "Паралич"),
+        ];
+        update_component_properties(&conn, id, &new_props).unwrap();
+
+        let mut got = component_properties(&conn, id, "ru").unwrap();
+        got.sort();
+        let mut expected: Vec<String> = vec![
+            "Водное дыхание".to_string(),
+            "Невидимость".to_string(),
+            "Паралич".to_string(),
+            "Урон здоровью".to_string(),
+        ];
+        expected.sort();
+        assert_eq!(got, expected);
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn component_exists_is_scoped_by_language() {
+        let db_path = temp_db_path("exists_scoped");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        assert!(component_exists(&conn, "Белянка", "ru").unwrap());
+        assert!(!component_exists(&conn, "Белянка", "en").unwrap(), "en-перевода с таким именем ещё нет");
+        assert!(!component_exists(&conn, "Совершенно новое имя", "ru").unwrap());
+
+        drop(conn);
         let _ = std::fs::remove_file(&db_path);
     }
 }
