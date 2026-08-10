@@ -69,7 +69,6 @@ pub fn run() {
             commands::component_exists,
             commands::is_user_added_component,
             commands::insert_component,
-            commands::rename_component,
             commands::delete_component,
             commands::update_component_properties,
             commands::set_component_media,

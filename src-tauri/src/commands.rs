@@ -22,15 +22,15 @@ fn map_err<E: std::fmt::Display>(e: E) -> String {
 }
 
 #[tauri::command]
-pub fn get_properties(state: State<AppState>) -> Result<Vec<String>, String> {
+pub fn get_properties(state: State<AppState>, lang: String) -> Result<Vec<db::PropertyInfo>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::load_properties(&conn).map_err(map_err)
+    db::load_properties(&conn, &lang).map_err(map_err)
 }
 
 #[tauri::command]
-pub fn get_component_names(state: State<AppState>) -> Result<Vec<String>, String> {
+pub fn get_component_names(state: State<AppState>, lang: String) -> Result<Vec<db::ComponentNameInfo>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::load_component_names(&conn).map_err(map_err)
+    db::load_component_names(&conn, &lang).map_err(map_err)
 }
 
 /// Список имён компонентов, ограниченный включёнными в Настройках
@@ -38,24 +38,29 @@ pub fn get_component_names(state: State<AppState>) -> Result<Vec<String>, String
 /// экране. "Редактировать базу" по-прежнему использует get_component_names
 /// (полный список, без фильтра).
 #[tauri::command]
-pub fn get_component_names_filtered(state: State<AppState>, addons: Vec<Addon>) -> Result<Vec<String>, String> {
+pub fn get_component_names_filtered(
+    state: State<AppState>,
+    addons: Vec<Addon>,
+    lang: String,
+) -> Result<Vec<db::ComponentNameInfo>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::load_component_names_filtered(&conn, &addons).map_err(map_err)
+    db::load_component_names_filtered(&conn, &addons, &lang).map_err(map_err)
 }
 
 #[tauri::command]
-pub fn get_component_properties(state: State<AppState>, name: String) -> Result<Vec<String>, String> {
+pub fn get_component_properties(state: State<AppState>, id: i64, lang: String) -> Result<Vec<String>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::component_properties(&conn, &name).map_err(map_err)
+    db::component_properties(&conn, id, &lang).map_err(map_err)
 }
 
 #[tauri::command]
 pub fn get_component_properties_with_types(
     state: State<AppState>,
-    name: String,
+    id: i64,
+    lang: String,
 ) -> Result<Vec<db::PropWithType>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::component_properties_with_types(&conn, &name).map_err(map_err)
+    db::component_properties_with_types(&conn, id, &lang).map_err(map_err)
 }
 
 #[derive(Serialize)]
@@ -68,9 +73,9 @@ pub struct ComponentMedia {
 }
 
 #[tauri::command]
-pub fn get_component_media(state: State<AppState>, name: String) -> Result<ComponentMedia, String> {
+pub fn get_component_media(state: State<AppState>, id: i64, lang: String) -> Result<ComponentMedia, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    let (bytes, description) = db::component_media(&conn, &name);
+    let (bytes, description) = db::component_media(&conn, id, &lang);
     Ok(ComponentMedia {
         image_data_url: bytes.map(|b| to_data_url(&b)),
         description,
@@ -80,12 +85,13 @@ pub fn get_component_media(state: State<AppState>, name: String) -> Result<Compo
 #[tauri::command]
 pub fn find_combinations(
     state: State<AppState>,
-    selected: Vec<String>,
+    selected: Vec<i64>,
     filter: String,
     addons: Vec<Addon>,
+    lang: String,
 ) -> Result<Vec<db::CombinationResult>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::find_combinations(&conn, &selected, &filter, &addons).map_err(map_err)
+    db::find_combinations(&conn, &selected, &filter, &addons, &lang).map_err(map_err)
 }
 
 #[tauri::command]
@@ -94,9 +100,10 @@ pub fn find_pairs(
     filter: String,
     addons: Vec<Addon>,
     max_results: u32,
+    lang: String,
 ) -> Result<Vec<String>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::find_pairs(&conn, &filter, &addons, max_results as usize).map_err(map_err)
+    db::find_pairs(&conn, &filter, &addons, max_results as usize, &lang).map_err(map_err)
 }
 
 #[tauri::command]
@@ -105,15 +112,16 @@ pub fn find_max_combinations(
     filter: String,
     addons: Vec<Addon>,
     max_results: u32,
+    lang: String,
 ) -> Result<Vec<String>, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::find_max_combinations(&conn, &filter, &addons, max_results as usize).map_err(map_err)
+    db::find_max_combinations(&conn, &filter, &addons, max_results as usize, &lang).map_err(map_err)
 }
 
 #[tauri::command]
-pub fn component_exists(state: State<AppState>, name: String) -> Result<bool, String> {
+pub fn component_exists(state: State<AppState>, name: String, lang: String) -> Result<bool, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::component_exists(&conn, &name).map_err(map_err)
+    db::component_exists(&conn, &name, &lang).map_err(map_err)
 }
 
 /// Название/свойства/удаление в "Редактировать базу" разрешены только для
@@ -121,9 +129,9 @@ pub fn component_exists(state: State<AppState>, name: String) -> Result<bool, St
 /// остальных нет безопасного пути восстановления при ошибке, см. заметки
 /// про инцидент с "Аронией".
 #[tauri::command]
-pub fn is_user_added_component(state: State<AppState>, name: String) -> Result<bool, String> {
+pub fn is_user_added_component(state: State<AppState>, id: i64) -> Result<bool, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    let addon = db::component_addon(&conn, &name).map_err(map_err)?;
+    let addon = db::component_addon(&conn, id).map_err(map_err)?;
     Ok(addon == Some(Addon::UserAdded))
 }
 
@@ -131,32 +139,27 @@ pub fn is_user_added_component(state: State<AppState>, name: String) -> Result<b
 pub fn insert_component(
     state: State<AppState>,
     name: String,
-    props: [String; 4],
-) -> Result<(), String> {
+    lang: String,
+    props: [i64; 4],
+) -> Result<i64, String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::insert_component(&conn, &name, &props).map_err(map_err)
+    db::insert_component(&conn, &name, &lang, &props).map_err(map_err)
 }
 
 #[tauri::command]
-pub fn rename_component(state: State<AppState>, old_name: String, new_name: String) -> Result<(), String> {
+pub fn delete_component(state: State<AppState>, id: i64) -> Result<(), String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::rename_component(&conn, &old_name, &new_name).map_err(map_err)
-}
-
-#[tauri::command]
-pub fn delete_component(state: State<AppState>, name: String) -> Result<(), String> {
-    let conn = state.conn.lock().map_err(map_err)?;
-    db::delete_component(&conn, &name).map_err(map_err)
+    db::delete_component(&conn, id).map_err(map_err)
 }
 
 #[tauri::command]
 pub fn update_component_properties(
     state: State<AppState>,
-    name: String,
-    props: [String; 4],
+    id: i64,
+    props: [i64; 4],
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(map_err)?;
-    db::update_component_properties(&conn, &name, &props)
+    db::update_component_properties(&conn, id, &props)
 }
 
 /// image_base64 — «сырой» base64 без префикса data:...;base64, (или None,
@@ -165,13 +168,13 @@ pub fn update_component_properties(
 #[tauri::command]
 pub fn set_component_media(
     state: State<AppState>,
-    name: String,
+    id: i64,
     image_base64: Option<String>,
     description: String,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(map_err)?;
     let bytes = image_base64.map(|s| STANDARD.decode(s)).transpose().map_err(map_err)?;
-    db::set_component_media(&conn, &name, bytes.as_deref(), &description).map_err(map_err)
+    db::set_component_media(&conn, id, bytes.as_deref(), &description).map_err(map_err)
 }
 
 #[derive(Serialize)]
