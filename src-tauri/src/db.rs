@@ -655,14 +655,20 @@ pub fn component_addon(conn: &Connection, component_id: i64) -> rusqlite::Result
 /// Сохраняет картинку (байты выбранного пользователем файла — либо None,
 /// чтобы убрать картинку) и описание компонента. Пишет и в legacy-колонку
 /// components.description (источник для бэкфилла migrate_i18n при
-/// следующем запуске — см. B1), и напрямую обновляет component_translations
-/// для lang='ru' — иначе правка не была бы видна до перезапуска программы.
-/// Редактирование сейчас всегда происходит на русском (lang='ru') —
-/// поведение при выбранном другом языке не определено этим планом, это
-/// отдельная задача (B4, UX редактирования при нескольких языках).
+/// следующем запуске — см. B1), и напрямую делает upsert в
+/// component_translations для переданного lang — иначе правка не была бы
+/// видна до перезапуска программы. lang — настоящий параметр (см. Global
+/// Constraints плана B2a, никакого хардкода внутри Rust-кода); используется
+/// upsert (INSERT ... ON CONFLICT), а не голый UPDATE, потому что строка
+/// component_translations для (id, lang) может ещё не существовать —
+/// например, если компонент создан на другом языке. Поведение при
+/// редактировании компонента, у которого ещё нет строки ни на одном языке,
+/// не определено этим планом — это отдельная задача (B4, UX редактирования
+/// при нескольких языках).
 pub fn set_component_media(
     conn: &Connection,
     id: i64,
+    lang: &str,
     image_bytes: Option<&[u8]>,
     description: &str,
 ) -> rusqlite::Result<()> {
@@ -670,9 +676,15 @@ pub fn set_component_media(
         "UPDATE components SET image = ?1, description = ?2 WHERE id = ?3",
         params![image_bytes, description, id],
     )?;
+    // Та же грамматическая неоднозначность "FROM tbl ON CONFLICT", что и в
+    // migrate_i18n (см. её комментарий выше) — WHERE id = ?1 здесь и
+    // разграничивает FROM-клаузу от ON CONFLICT, и одновременно нужен по
+    // смыслу (выбрать конкретный компонент).
     conn.execute(
-        "UPDATE component_translations SET description = ?1 WHERE component_id = ?2 AND lang = 'ru'",
-        params![description, id],
+        "INSERT INTO component_translations (component_id, lang, name, description)
+         SELECT ?1, ?2, name, ?3 FROM components WHERE id = ?1
+         ON CONFLICT(component_id, lang) DO UPDATE SET description = excluded.description",
+        params![id, lang, description],
     )?;
     Ok(())
 }
@@ -717,10 +729,14 @@ pub fn insert_component(
     )?;
 
     for &property_id in prop_ids {
-        conn.execute(
-            "INSERT INTO component_properties (component_id, property_id) VALUES (?1, ?2)",
+        let inserted = conn.execute(
+            "INSERT INTO component_properties (component_id, property_id)
+             SELECT ?1, id FROM properties WHERE id = ?2",
             params![component_id, property_id],
         )?;
+        if inserted == 0 {
+            return Err(rusqlite::Error::QueryReturnedNoRows);
+        }
     }
     Ok(component_id)
 }
@@ -739,8 +755,10 @@ pub fn delete_component(conn: &Connection, id: i64) -> rusqlite::Result<()> {
 }
 
 /// prop_ids — id уже существующих свойств; какой из 4 слотов пуст/невалиден
-/// решает фронтенд (Select не даёт отправить форму без выбора) — эта
-/// функция доверяет, что все 4 id валидны.
+/// решает фронтенд (Select не даёт отправить форму без выбора). На случай,
+/// если сюда всё же попадёт id, которого нет в properties (component_properties
+/// без FOREIGN KEY тихо приняла бы его иначе), каждая вставка проверяется —
+/// см. Finding 1 финального ревью B2a.
 pub fn update_component_properties(
     conn: &Connection,
     component_id: i64,
@@ -753,11 +771,16 @@ pub fn update_component_properties(
     .map_err(|e| e.to_string())?;
 
     for &property_id in prop_ids {
-        conn.execute(
-            "INSERT INTO component_properties (component_id, property_id) VALUES (?1, ?2)",
-            params![component_id, property_id],
-        )
-        .map_err(|e| e.to_string())?;
+        let inserted = conn
+            .execute(
+                "INSERT INTO component_properties (component_id, property_id)
+                 SELECT ?1, id FROM properties WHERE id = ?2",
+                params![component_id, property_id],
+            )
+            .map_err(|e| e.to_string())?;
+        if inserted == 0 {
+            return Err(format!("свойство с id {property_id} не найдено"));
+        }
     }
 
     Ok(())
@@ -1159,14 +1182,57 @@ mod rare_curios_tests {
         let id = component_id_by_name(&conn, "Шляпки гифоломы");
 
         let bytes = vec![1u8, 2, 3, 4, 5];
-        set_component_media(&conn, id, Some(&bytes), "новое описание").unwrap();
+        set_component_media(&conn, id, "ru", Some(&bytes), "новое описание").unwrap();
         let (image, description) = component_media(&conn, id, "ru");
         assert_eq!(image, Some(bytes));
         assert_eq!(description, "новое описание");
 
-        set_component_media(&conn, id, None, "новое описание").unwrap();
+        set_component_media(&conn, id, "ru", None, "новое описание").unwrap();
         let (image2, _) = component_media(&conn, id, "ru");
         assert_eq!(image2, None);
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Final review finding #2: set_component_media раньше хардкодила
+    /// lang='ru' во втором запросе, а компонент, созданный на другом языке,
+    /// не имеет строки component_translations для 'ru' вовсе — правка либо
+    /// молча не долетала бы (UPDATE по 0 строк), либо (что ещё хуже)
+    /// правка описания компонента, реально существующего на lang='en',
+    /// молча создавала бы для него левую 'ru'-строку. Теперь lang —
+    /// настоящий параметр, и используется upsert, а не голый UPDATE, —
+    /// проверяем оба свойства: (1) правка компонента, у которого ещё нет
+    /// строки component_translations для lang='en' (INSERT-ветка upsert-а,
+    /// а не только UPDATE, который уже покрыт
+    /// migration_ru_upsert_reflects_user_edits), реально создаёт её с
+    /// правильным description; (2) при этом строка для lang='ru' того же
+    /// компонента остаётся нетронутой.
+    #[test]
+    fn set_component_media_upserts_under_explicit_lang() {
+        let db_path = temp_db_path("set_media_lang");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+        let id = component_id_by_name(&conn, "Шляпки гифоломы");
+
+        let (_, ru_description_before) = component_media(&conn, id, "ru");
+
+        // Явно убираем en-строку (даже если migrate_i18n/TRANSLATIONS уже
+        // её создали), чтобы тест детерминированно проверял именно
+        // INSERT-ветку upsert-а, а не полагался на состав seed_translations.rs.
+        conn.execute(
+            "DELETE FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+            params![id],
+        )
+        .unwrap();
+
+        set_component_media(&conn, id, "en", None, "edited english description").unwrap();
+
+        let (_, en_description) = component_media(&conn, id, "en");
+        assert_eq!(en_description, "edited english description", "upsert должен создать отсутствовавшую строку component_translations для lang='en'");
+
+        let (_, ru_description_after) = component_media(&conn, id, "ru");
+        assert_eq!(ru_description_after, ru_description_before, "правка под lang='en' не должна была задеть строку lang='ru'");
 
         drop(conn);
         let _ = std::fs::remove_file(&db_path);
@@ -1212,6 +1278,30 @@ mod rare_curios_tests {
         ];
         let new_id = insert_component(&conn, "Тестовый ингредиент", "ru", &props).unwrap();
         assert_eq!(component_addon(&conn, new_id).unwrap(), Some(Addon::UserAdded));
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Final review finding #1: component_properties не имеет FOREIGN KEY,
+    /// поэтому без явной проверки несуществующий property_id тихо
+    /// "вставлялся" бы и просто выпадал из всех INNER JOIN properties —
+    /// компонент выглядел бы так, будто у него меньше свойств, без единой
+    /// ошибки. insert_component теперь проверяет каждый id перед вставкой.
+    #[test]
+    fn insert_component_rejects_unknown_property_id() {
+        let db_path = temp_db_path("insert_unknown_prop");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let props = [
+            property_id_by_name(&conn, "Бешенство"),
+            property_id_by_name(&conn, "Замедление"),
+            property_id_by_name(&conn, "Страх"),
+            999_999,
+        ];
+        let result = insert_component(&conn, "Компонент с плохим свойством", "ru", &props);
+        assert!(result.is_err(), "insert_component должна вернуть ошибку на несуществующий property_id");
 
         drop(conn);
         let _ = std::fs::remove_file(&db_path);
@@ -1494,7 +1584,7 @@ mod rare_curios_tests {
         let component_id = component_id_by_name(&conn, "Белянка");
         let (_, old_description) = component_media(&conn, component_id, "ru");
 
-        set_component_media(&conn, component_id, None, "новое описание после правки пользователя").unwrap();
+        set_component_media(&conn, component_id, "ru", None, "новое описание после правки пользователя").unwrap();
 
         drop(conn);
         let conn2 = ensure_db(&db_path).unwrap();
@@ -1674,6 +1764,36 @@ mod rare_curios_tests {
         ];
         expected.sort();
         assert_eq!(got, expected);
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Final review finding #1 (see also insert_component_rejects_unknown_property_id):
+    /// та же проверка для update_component_properties, у которой отдельный
+    /// путь вставки (DELETE + INSERT цикл, а не один insert при создании).
+    #[test]
+    fn update_component_properties_rejects_unknown_property_id() {
+        let db_path = temp_db_path("update_unknown_prop");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let props = [
+            property_id_by_name(&conn, "Бешенство"),
+            property_id_by_name(&conn, "Замедление"),
+            property_id_by_name(&conn, "Страх"),
+            property_id_by_name(&conn, "Паралич"),
+        ];
+        let id = insert_component(&conn, "Тестовый ингредиент 3", "ru", &props).unwrap();
+
+        let bad_props = [
+            property_id_by_name(&conn, "Водное дыхание"),
+            property_id_by_name(&conn, "Невидимость"),
+            property_id_by_name(&conn, "Урон здоровью"),
+            999_999,
+        ];
+        let result = update_component_properties(&conn, id, &bad_props);
+        assert!(result.is_err(), "update_component_properties должна вернуть ошибку на несуществующий property_id");
 
         drop(conn);
         let _ = std::fs::remove_file(&db_path);

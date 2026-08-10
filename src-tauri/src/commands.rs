@@ -169,12 +169,13 @@ pub fn update_component_properties(
 pub fn set_component_media(
     state: State<AppState>,
     id: i64,
+    lang: String,
     image_base64: Option<String>,
     description: String,
 ) -> Result<(), String> {
     let conn = state.conn.lock().map_err(map_err)?;
     let bytes = image_base64.map(|s| STANDARD.decode(s)).transpose().map_err(map_err)?;
-    db::set_component_media(&conn, id, bytes.as_deref(), &description).map_err(map_err)
+    db::set_component_media(&conn, id, &lang, bytes.as_deref(), &description).map_err(map_err)
 }
 
 #[derive(Serialize)]
