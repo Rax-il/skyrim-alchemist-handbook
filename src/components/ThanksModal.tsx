@@ -72,7 +72,7 @@ const SERVICE_BANNER_HEIGHT = QR_PLACEHOLDER_SIZE / 3;
 const DIVIDER_OFFSET = 30;
 
 export function ThanksModal({ opened, onClose }: Props) {
-  const [donation, setDonation] = useState<string | null>(null);
+  const [donation, setDonation] = useState<string | null>(DONATION_OPTIONS[0]?.value ?? null);
   const selected = DONATION_OPTIONS.find((o) => o.value === donation) ?? null;
 
   return (
