@@ -10,6 +10,9 @@ const THANKS_WIDTH = 490;
 const THANKS_HEIGHT = 400;
 // Пока нет реального QR — просто квадрат-заглушка на его месте.
 const QR_PLACEHOLDER_SIZE = 140;
+// Заглушка под баннер сервиса (заменит текст "Донат осуществляется...") —
+// ширина как у QR-заглушки выше, высота втрое меньше.
+const SERVICE_BANNER_HEIGHT = QR_PLACEHOLDER_SIZE / 3;
 // Смещение разделителя картинка/текст от центра (вправо — положительное).
 const DIVIDER_OFFSET = 40;
 
@@ -78,10 +81,15 @@ export function ThanksModal({ opened, onClose }: Props) {
             }}
           />
 
-          <Text size="xs" c="dimmed" ta="center">
-            Донат осуществляется посредством безопасного сервиса оплаты
-            чаевых ххх.com
-          </Text>
+          {/* TODO: заменить на реальный баннер сервиса, когда будет решено,
+              куда именно ведёт поддержка (см. TODO у QR-заглушки выше). */}
+          <div
+            style={{
+              width: QR_PLACEHOLDER_SIZE,
+              height: SERVICE_BANNER_HEIGHT,
+              flexShrink: 0,
+            }}
+          />
         </div>
       </div>
     </Modal>
