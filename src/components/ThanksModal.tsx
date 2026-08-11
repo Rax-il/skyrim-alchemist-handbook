@@ -30,17 +30,22 @@ const DONATION_OPTIONS: DonationOption[] = [
 
 const EMPTY_OPTION = "— не выбрано —";
 
-const THANKS_WIDTH = 490;
+// +20 к THANKS_WIDTH и -10 к DIVIDER_OFFSET вместе расширяют ТОЛЬКО правую
+// часть окна на 20px (левая картинка — DIVIDER_OFFSET + WIDTH/2 —
+// компенсируется и остаётся прежней ширины), чтобы баннер ниже мог стать
+// шире на те же 20px без изменения отступов.
+const THANKS_WIDTH = 510;
 const THANKS_HEIGHT = 400;
 // Пока нет реального QR — просто квадрат-заглушка на его месте (пока
 // вариант доната не выбран; после выбора здесь появляется QR выбранного
 // варианта).
 const QR_PLACEHOLDER_SIZE = 140;
-// Заглушка/баннер сервиса — ширина как у QR-заглушки выше, высота втрое
-// меньше.
+// Заглушка/баннер сервиса — на 20px шире QR-заглушки, высота втрое меньше
+// (относительно ширины QR, не своей собственной).
+const SERVICE_BANNER_WIDTH = QR_PLACEHOLDER_SIZE + 20;
 const SERVICE_BANNER_HEIGHT = QR_PLACEHOLDER_SIZE / 3;
 // Смещение разделителя картинка/текст от центра (вправо — положительное).
-const DIVIDER_OFFSET = 40;
+const DIVIDER_OFFSET = 30;
 
 export function ThanksModal({ opened, onClose }: Props) {
   const [donation, setDonation] = useState<string | null>(null);
@@ -132,7 +137,7 @@ export function ThanksModal({ opened, onClose }: Props) {
 
           <div
             style={{
-              width: QR_PLACEHOLDER_SIZE,
+              width: SERVICE_BANNER_WIDTH,
               height: SERVICE_BANNER_HEIGHT,
               flexShrink: 0,
             }}
