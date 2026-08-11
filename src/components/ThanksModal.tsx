@@ -99,6 +99,7 @@ export function ThanksModal({ opened, onClose }: Props) {
             justifyContent: "center",
             gap: 12,
             padding: 16,
+            transform: "translateY(15px)",
           }}
         >
           <Text size="sm" fw={600} ta="center">
