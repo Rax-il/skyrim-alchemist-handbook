@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Group, Menu, Modal, Stack, Text } from "@mantine/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { api } from "./lib/api";
-import type { CombinationResult, FilterKind } from "./lib/api";
+import { api, CURRENT_LANG } from "./lib/api";
+import type { ComponentNameInfo, CombinationResult, FilterKind, PropertyInfo } from "./lib/api";
 import { useDragHandle } from "./lib/useDrag";
 import { ControlPanel } from "./components/ControlPanel";
 import { TopPane } from "./components/TopPane";
@@ -28,12 +28,17 @@ interface Props {
 }
 
 export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }: Props) {
-  const [properties, setProperties] = useState<string[]>([]);
-  const [componentNames, setComponentNames] = useState<string[]>([]);
+  const [properties, setProperties] = useState<PropertyInfo[]>([]);
+  const [componentNames, setComponentNames] = useState<ComponentNameInfo[]>([]);
 
-  const [selects, setSelects] = useState<[string, string, string, string]>(["", "", "", ""]);
+  const [selects, setSelects] = useState<[number | null, number | null, number | null, number | null]>([
+    null,
+    null,
+    null,
+    null,
+  ]);
   const [filter, setFilter] = useState<FilterKind>("");
-  const [componentSelect, setComponentSelect] = useState("");
+  const [componentSelect, setComponentSelect] = useState<number | null>(null);
 
   const [results, setResults] = useState<string[]>([]);
   const [resultsHeader, setResultsHeader] = useState("Найдено 0 комбинаций");
@@ -42,7 +47,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   const [bottomMode, setBottomMode] = useState<BottomMode>({ kind: "list" });
 
   const lastCombosRef = useRef<CombinationResult[]>([]);
-  const [enabledComponents, setEnabledComponents] = useState<Record<string, boolean>>({});
+  const [enabledComponents, setEnabledComponents] = useState<Record<number, boolean>>({});
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -68,7 +73,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   // эффектом ниже — он же сработает повторно, когда сохранённый набор
   // дополнений подгрузится из getLayout и отличается от дефолтного) ---
   useEffect(() => {
-    api.getProperties().then(setProperties);
+    api.getProperties(CURRENT_LANG).then(setProperties);
     api.getLayout().then((l) => {
       setSidePanelWidth(l.side_panel_width);
       setSplitRatio(l.split_ratio);
@@ -94,9 +99,9 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   // ссылаться на теперь скрытые ингредиенты — сбрасываем оба, чтобы не
   // показывать стухшие данные; пользователь просто ищет заново.
   useEffect(() => {
-    api.getComponentNamesFiltered(enabledAddons).then((names) => {
+    api.getComponentNamesFiltered(enabledAddons, CURRENT_LANG).then((names) => {
       setComponentNames(names);
-      setComponentSelect((prev) => (names.includes(prev) ? prev : ""));
+      setComponentSelect((prev) => (prev !== null && names.some((n) => n.id === prev) ? prev : null));
     });
     lastCombosRef.current = [];
     setEnabledComponents({});
@@ -107,8 +112,8 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   }, [enabledAddons]);
 
   function refreshLists() {
-    api.getProperties().then(setProperties);
-    api.getComponentNamesFiltered(enabledAddons).then(setComponentNames);
+    api.getProperties(CURRENT_LANG).then(setProperties);
+    api.getComponentNamesFiltered(enabledAddons, CURRENT_LANG).then(setComponentNames);
   }
 
   function info_(title: string, text: string) {
@@ -151,35 +156,36 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
     setResults(lines.length === 0 ? [emptyMessage] : lines);
   }
 
-  function applyComponentFilter(enabled: Record<string, boolean>) {
+  function applyComponentFilter(enabled: Record<number, boolean>) {
     const filtered = lastCombosRef.current
-      .filter((c) => c.components.every((name) => enabled[name] ?? false))
+      .filter((c) => c.components.every((id) => enabled[id] ?? false))
       .map((c) => c.line);
     setPlainResults(filtered, "Сочетаний не найдено");
   }
 
   async function handleFindCombinations() {
-    const chosen = selects.filter((s) => s !== "");
+    const chosen = selects.filter((s): s is number => s !== null);
     if (chosen.length === 0) {
       info_("Внимание", "Выберите хотя бы одно свойство.");
       return;
     }
     try {
-      const found = await api.findCombinations(chosen, filter, enabledAddons);
+      const found = await api.findCombinations(chosen, filter, enabledAddons, CURRENT_LANG);
       lastCombosRef.current = found;
-      const enabled: Record<string, boolean> = {};
-      const names: string[] = [];
+      const nameById = new Map(componentNames.map((c) => [c.id, c.name]));
+      const enabled: Record<number, boolean> = {};
+      const items: ComponentNameInfo[] = [];
       for (const c of found) {
-        for (const name of c.components) {
-          if (!(name in enabled)) {
-            enabled[name] = true;
-            names.push(name);
+        for (const id of c.components) {
+          if (!(id in enabled)) {
+            enabled[id] = true;
+            items.push({ id, name: nameById.get(id) ?? String(id) });
           }
         }
       }
-      names.sort((a, b) => a.localeCompare(b));
+      items.sort((a, b) => a.name.localeCompare(b.name));
       setEnabledComponents(enabled);
-      setTopMode({ kind: "checklist", names });
+      setTopMode({ kind: "checklist", items });
       applyComponentFilter(enabled);
     } catch (e) {
       info_("Ошибка", String(e));
@@ -187,21 +193,22 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   }
 
   async function handleShowProperties() {
-    if (!componentSelect) {
+    if (componentSelect === null) {
       info_("Внимание", "Выберите компонент.");
       return;
     }
     try {
-      const props = await api.getComponentProperties(componentSelect);
+      const props = await api.getComponentProperties(componentSelect, CURRENT_LANG);
+      const selectedName = componentNames.find((c) => c.id === componentSelect)?.name ?? "";
       lastCombosRef.current = [];
       setEnabledComponents({});
       setTopMode({ kind: "properties", props });
-      setResultsHeader(componentSelect);
+      setResultsHeader(selectedName);
 
-      const media = await api.getComponentMedia(componentSelect);
+      const media = await api.getComponentMedia(componentSelect, CURRENT_LANG);
       setBottomMode({
         kind: "media",
-        name: componentSelect,
+        name: selectedName,
         description: media.description,
         imageDataUrl: media.image_data_url,
       });
@@ -212,10 +219,10 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
 
   async function handleFindPairs() {
     try {
-      const found = await api.findPairs(filter, enabledAddons, maxCombinations);
+      const found = await api.findPairs(filter, enabledAddons, maxCombinations, CURRENT_LANG);
       lastCombosRef.current = [];
       setEnabledComponents({});
-      setTopMode({ kind: "checklist", names: [] });
+      setTopMode({ kind: "checklist", items: [] });
       setBlockResults(found, "Сочетаний не найдено");
     } catch (e) {
       info_("Ошибка", String(e));
@@ -224,18 +231,18 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
 
   async function handleFindMaxCombinations() {
     try {
-      const found = await api.findMaxCombinations(filter, enabledAddons, maxCombinations);
+      const found = await api.findMaxCombinations(filter, enabledAddons, maxCombinations, CURRENT_LANG);
       lastCombosRef.current = [];
       setEnabledComponents({});
-      setTopMode({ kind: "checklist", names: [] });
+      setTopMode({ kind: "checklist", items: [] });
       setBlockResults(found, "Сочетаний не найдено");
     } catch (e) {
       info_("Ошибка", String(e));
     }
   }
 
-  function handleToggleComponent(name: string, checked: boolean) {
-    const next = { ...enabledComponents, [name]: checked };
+  function handleToggleComponent(id: number, checked: boolean) {
+    const next = { ...enabledComponents, [id]: checked };
     setEnabledComponents(next);
     applyComponentFilter(next);
   }
