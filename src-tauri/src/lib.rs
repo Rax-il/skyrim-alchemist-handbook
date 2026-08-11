@@ -6,6 +6,7 @@ mod layout;
 mod paths;
 mod rare_curios;
 mod seed_data;
+mod seed_description_translations;
 mod seed_translations;
 
 use commands::AppState;
