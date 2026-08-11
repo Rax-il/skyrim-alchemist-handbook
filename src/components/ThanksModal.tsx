@@ -1,22 +1,51 @@
-import { CloseButton, Modal, Text } from "@mantine/core";
+import { useState } from "react";
+import { CloseButton, Modal, Select, Text, TextInput } from "@mantine/core";
 import portrait from "../assets/thanks-portrait.png";
+import ethereumQr from "../assets/donation-ethereum-qr.png";
+import ethereumBanner from "../assets/donation-ethereum-metamask.png";
 
 interface Props {
   opened: boolean;
   onClose: () => void;
 }
 
+interface DonationOption {
+  value: string;
+  label: string;
+  qrSrc: string;
+  address: string;
+  bannerSrc: string;
+}
+
+// Наполняется поэтапно — пока только один вариант.
+const DONATION_OPTIONS: DonationOption[] = [
+  {
+    value: "ethereum",
+    label: "Сеть Ethereum",
+    qrSrc: ethereumQr,
+    address: "0x0ce4e6492Be3C088bC13E2ba74Ffe0EE61514995",
+    bannerSrc: ethereumBanner,
+  },
+];
+
+const EMPTY_OPTION = "— не выбрано —";
+
 const THANKS_WIDTH = 490;
 const THANKS_HEIGHT = 400;
-// Пока нет реального QR — просто квадрат-заглушка на его месте.
+// Пока нет реального QR — просто квадрат-заглушка на его месте (пока
+// вариант доната не выбран; после выбора здесь появляется QR выбранного
+// варианта).
 const QR_PLACEHOLDER_SIZE = 140;
-// Заглушка под баннер сервиса (заменит текст "Донат осуществляется...") —
-// ширина как у QR-заглушки выше, высота втрое меньше.
+// Заглушка/баннер сервиса — ширина как у QR-заглушки выше, высота втрое
+// меньше.
 const SERVICE_BANNER_HEIGHT = QR_PLACEHOLDER_SIZE / 3;
 // Смещение разделителя картинка/текст от центра (вправо — положительное).
 const DIVIDER_OFFSET = 40;
 
 export function ThanksModal({ opened, onClose }: Props) {
+  const [donation, setDonation] = useState<string | null>(null);
+  const selected = DONATION_OPTIONS.find((o) => o.value === donation) ?? null;
+
   return (
     <Modal
       opened={opened}
@@ -53,7 +82,8 @@ export function ThanksModal({ opened, onClose }: Props) {
           />
         </div>
 
-        {/* Правая половина — текст сверху, заглушка QR-кода ниже. */}
+        {/* Правая половина — текст, выбор варианта доната, QR/адрес/баннер
+            выбранного варианта. */}
         <div
           style={{
             width: `calc(50% - ${DIVIDER_OFFSET}px)`,
@@ -62,7 +92,7 @@ export function ThanksModal({ opened, onClose }: Props) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 24,
+            gap: 12,
             padding: 16,
           }}
         >
@@ -70,26 +100,51 @@ export function ThanksModal({ opened, onClose }: Props) {
             Автор благодарен Вам за поддержку!
           </Text>
 
-          {/* TODO: заменить на реальный QR-код (донат-адрес/ссылка), когда
-              будет решено, куда именно ведёт поддержка. */}
+          <Select
+            label="Вариант доната"
+            placeholder={EMPTY_OPTION}
+            data={DONATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={donation}
+            onChange={setDonation}
+            clearable
+            comboboxProps={{ withinPortal: true }}
+            w="100%"
+          />
+
           <div
             style={{
               width: QR_PLACEHOLDER_SIZE,
               height: QR_PLACEHOLDER_SIZE,
-              border: "1px solid var(--mantine-color-gray-5)",
+              border: selected ? undefined : "1px solid var(--mantine-color-gray-5)",
               flexShrink: 0,
             }}
-          />
+          >
+            {selected && (
+              <img
+                src={selected.qrSrc}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+              />
+            )}
+          </div>
 
-          {/* TODO: заменить на реальный баннер сервиса, когда будет решено,
-              куда именно ведёт поддержка (см. TODO у QR-заглушки выше). */}
+          <TextInput value={selected?.address ?? ""} readOnly size="xs" w="100%" />
+
           <div
             style={{
               width: QR_PLACEHOLDER_SIZE,
               height: SERVICE_BANNER_HEIGHT,
               flexShrink: 0,
             }}
-          />
+          >
+            {selected && (
+              <img
+                src={selected.bannerSrc}
+                alt=""
+                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+              />
+            )}
+          </div>
         </div>
       </div>
     </Modal>
