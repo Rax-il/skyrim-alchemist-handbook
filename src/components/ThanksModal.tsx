@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CloseButton, Modal, Select, Text, TextInput } from "@mantine/core";
+import { CloseButton, Modal, Select, Text, Textarea } from "@mantine/core";
 import portrait from "../assets/thanks-portrait.png";
 import ethereumQr from "../assets/donation-ethereum-qr.png";
 import ethereumBanner from "../assets/donation-ethereum-metamask.png";
@@ -134,7 +134,13 @@ export function ThanksModal({ opened, onClose }: Props) {
             )}
           </div>
 
-          <TextInput value={selected?.address ?? ""} readOnly size="xs" w="100%" />
+          <Textarea
+            value={selected?.address ?? ""}
+            readOnly
+            size="xs"
+            w="100%"
+            styles={{ input: { height: 40, minHeight: 40, textAlign: "center" } }}
+          />
 
           <div
             style={{
