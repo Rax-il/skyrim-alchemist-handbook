@@ -1,15 +1,17 @@
 import { Button, Divider, Radio, Select, Stack, Text } from "@mantine/core";
-import type { FilterKind } from "../lib/api";
+import type { ComponentNameInfo, FilterKind, PropertyInfo } from "../lib/api";
+
+type Selects = [number | null, number | null, number | null, number | null];
 
 interface Props {
-  properties: string[];
-  selects: [string, string, string, string];
-  onSelectsChange: (next: [string, string, string, string]) => void;
+  properties: PropertyInfo[];
+  selects: Selects;
+  onSelectsChange: (next: Selects) => void;
   filter: FilterKind;
   onFilterChange: (f: FilterKind) => void;
-  componentNames: string[];
-  componentSelect: string;
-  onComponentSelectChange: (v: string) => void;
+  componentNames: ComponentNameInfo[];
+  componentSelect: number | null;
+  onComponentSelectChange: (v: number | null) => void;
   onFindCombinations: () => void;
   onShowProperties: () => void;
   onFindPairs: () => void;
@@ -32,12 +34,12 @@ export function ControlPanel({
   onFindPairs,
   onFindMaxCombinations,
 }: Props) {
-  const propertyOptions = properties.map((p) => ({ value: p, label: p }));
-  const componentOptions = componentNames.map((n) => ({ value: n, label: n }));
+  const propertyOptions = properties.map((p) => ({ value: String(p.id), label: p.name }));
+  const componentOptions = componentNames.map((c) => ({ value: String(c.id), label: c.name }));
 
   const setSelect = (i: number, value: string | null) => {
-    const next = [...selects] as [string, string, string, string];
-    next[i] = value ?? "";
+    const next = [...selects] as Selects;
+    next[i] = value !== null ? Number(value) : null;
     onSelectsChange(next);
   };
 
@@ -53,7 +55,7 @@ export function ControlPanel({
           label={`Свойство ${i + 1}`}
           placeholder={EMPTY_OPTION}
           data={propertyOptions}
-          value={selects[i] || null}
+          value={selects[i] !== null ? String(selects[i]) : null}
           onChange={(v) => setSelect(i, v)}
           searchable
           clearable
@@ -86,8 +88,8 @@ export function ControlPanel({
       <Select
         placeholder={EMPTY_OPTION}
         data={componentOptions}
-        value={componentSelect || null}
-        onChange={(v) => onComponentSelectChange(v ?? "")}
+        value={componentSelect !== null ? String(componentSelect) : null}
+        onChange={(v) => onComponentSelectChange(v !== null ? Number(v) : null)}
         searchable
         clearable
         comboboxProps={{ withinPortal: true }}

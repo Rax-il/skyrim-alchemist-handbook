@@ -11,7 +11,8 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { api } from "../lib/api";
+import { api, CURRENT_LANG } from "../lib/api";
+import type { ComponentNameInfo, PropertyInfo } from "../lib/api";
 import { GOOD_QUALITY_SIZE, useAdaptiveImageSize } from "../lib/useAdaptiveImageSize";
 
 interface Props {
@@ -20,20 +21,28 @@ interface Props {
   onChanged: () => void; // список компонентов на главном экране мог измениться
 }
 
+type PropIds = [number | null, number | null, number | null, number | null];
+
 interface Snapshot {
-  props: [string, string, string, string];
+  props: PropIds;
   imageBase64: string | null;
 }
 
-const emptySnapshot: Snapshot = { props: ["", "", "", ""], imageBase64: null };
+const emptySnapshot: Snapshot = { props: [null, null, null, null], imageBase64: null };
 
 const PREVIEW_BOX = GOOD_QUALITY_SIZE;
 const DESCRIPTION_HEIGHT = 85;
 
 export function EditorModal({ opened, onClose, onChanged }: Props) {
-  const [names, setNames] = useState<string[]>([]);
-  const [allProperties, setAllProperties] = useState<string[]>([]);
+  const [names, setNames] = useState<ComponentNameInfo[]>([]);
+  const [allProperties, setAllProperties] = useState<PropertyInfo[]>([]);
 
+  // loadedId — идентификатор для всех id-based вызовов; null, пока не
+  // загружено ничего или пока это ещё не сохранённый новый компонент (у
+  // него id появится только после insertComponent). loadedName —
+  // отображаемое имя: для существующего компонента резолвится из names,
+  // для нового — то, что ввёл пользователь в диалоге "Новый".
+  const [loadedId, setLoadedId] = useState<number | null>(null);
   const [loadedName, setLoadedName] = useState("");
   const [isNew, setIsNew] = useState(false);
   // Название/свойства/удаление разрешены только для ингредиентов, которые
@@ -45,7 +54,7 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
   const [newDialogGeneration, setNewDialogGeneration] = useState(0);
   const newNameRef = useRef<HTMLInputElement>(null);
 
-  const [propSelects, setPropSelects] = useState<[string, string, string, string]>(["", "", "", ""]);
+  const [propSelects, setPropSelects] = useState<PropIds>([null, null, null, null]);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [imageFileName, setImageFileName] = useState("");
 
@@ -64,7 +73,7 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmBaseEdit, setConfirmBaseEdit] = useState(false);
   const [pendingAction, setPendingAction] = useState<
-    { kind: "load"; name: string } | { kind: "close" } | { kind: "new" } | null
+    { kind: "load"; id: number; name: string } | { kind: "close" } | { kind: "new" } | null
   >(null);
 
   const previewSrc = useMemo(
@@ -75,12 +84,12 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
 
   useEffect(() => {
     if (!opened) return;
-    api.getProperties().then(setAllProperties).catch(() => {});
+    api.getProperties(CURRENT_LANG).then(setAllProperties).catch(() => {});
     api
-      .getComponentNames()
+      .getComponentNames(CURRENT_LANG)
       .then((ns) => {
         setNames(ns);
-        if (ns.length > 0) loadComponent(ns[0]);
+        if (ns.length > 0) loadComponent(ns[0].id, ns[0].name);
         else clearFields();
       })
       .catch(() => {});
@@ -106,7 +115,8 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
     setImageFileName("");
     setDescription("");
     setDescriptionTouched(false);
-    setPropSelects(["", "", "", ""]);
+    setPropSelects([null, null, null, null]);
+    setLoadedId(null);
     setLoadedName("");
     setIsNew(false);
     setEditable(true);
@@ -114,27 +124,29 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
     setDirty(false);
   }
 
-  async function loadComponent(name: string) {
+  async function loadComponent(id: number, name: string) {
     const [props, media, userAdded] = await Promise.all([
-      api.getComponentPropertiesWithTypes(name),
-      api.getComponentMedia(name),
-      api.isUserAddedComponent(name),
+      api.getComponentPropertiesWithTypes(id, CURRENT_LANG),
+      api.getComponentMedia(id, CURRENT_LANG),
+      api.isUserAddedComponent(id),
     ]);
-    const propNames = props.slice(0, 4).map((p) => p.name);
-    while (propNames.length < 4) propNames.push("");
-    const propsTuple = propNames as [string, string, string, string];
+    const propIds: PropIds = [null, null, null, null];
+    props.slice(0, 4).forEach((p, i) => {
+      propIds[i] = p.id;
+    });
     const b64 = media.image_data_url ? base64FromDataUrl(media.image_data_url) : null;
 
-    setPropSelects(propsTuple);
+    setPropSelects(propIds);
     setImageBase64(b64);
     setImageFileName("");
     setDescription(media.description);
     setDescriptionTouched(false);
 
+    setLoadedId(id);
     setLoadedName(name);
     setIsNew(false);
     setEditable(userAdded);
-    originalRef.current = { props: propsTuple, imageBase64: b64 };
+    originalRef.current = { props: propIds, imageBase64: b64 };
     setDirty(false);
   }
 
@@ -143,7 +155,8 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
     setImageFileName("");
     setDescription("");
     setDescriptionTouched(false);
-    setPropSelects(["", "", "", ""]);
+    setPropSelects([null, null, null, null]);
+    setLoadedId(null);
     setLoadedName(name);
     setIsNew(true);
     setEditable(true);
@@ -151,7 +164,9 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
     setDirty(false);
   }
 
-  function requestAction(action: { kind: "load"; name: string } | { kind: "close" } | { kind: "new" }) {
+  function requestAction(
+    action: { kind: "load"; id: number; name: string } | { kind: "close" } | { kind: "new" },
+  ) {
     if (!dirty) {
       runAction(action);
     } else {
@@ -159,8 +174,8 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
     }
   }
 
-  function runAction(action: { kind: "load"; name: string } | { kind: "close" } | { kind: "new" }) {
-    if (action.kind === "load") loadComponent(action.name);
+  function runAction(action: { kind: "load"; id: number; name: string } | { kind: "close" } | { kind: "new" }) {
+    if (action.kind === "load") loadComponent(action.id, action.name);
     else if (action.kind === "new") {
       setNewDialogGeneration((g) => g + 1);
       setNewDialogOpen(true);
@@ -173,7 +188,7 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
       setInfo({ title: "Ошибка", text: "Введите название ингредиента." });
       return;
     }
-    if (await api.componentExists(name)) {
+    if (await api.componentExists(name, CURRENT_LANG)) {
       setInfo({ title: "Ошибка", text: `Ингредиент «${name}» уже существует.` });
       return;
     }
@@ -196,10 +211,10 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
   }
 
   async function handleSave() {
-    const seen = new Set<string>();
+    const seen = new Set<number>();
     for (let i = 0; i < 4; i++) {
       const p = propSelects[i];
-      if (!p) {
+      if (p === null) {
         setInfo({ title: "Ошибка", text: `Выберите значение во всех 4 полях «Свойство» (поле ${i + 1}).` });
         return;
       }
@@ -223,16 +238,23 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
 
   async function performSave() {
     const descriptionValue = (descriptionRef.current?.value ?? "").trim();
+    // propSelects прошли валидацию в handleSave (все 4 не null) до вызова
+    // performSave (единственный вызывающий, включая путь через confirmBaseEdit).
+    const propIds = propSelects as [number, number, number, number];
     try {
+      let id = loadedId;
       if (isNew) {
-        await api.insertComponent(loadedName, propSelects);
-        const ns = await api.getComponentNames();
+        id = await api.insertComponent(loadedName, CURRENT_LANG, propIds);
+        const ns = await api.getComponentNames(CURRENT_LANG);
         setNames(ns);
-      } else if (editable) {
-        await api.updateComponentProperties(loadedName, propSelects);
+      } else if (editable && id !== null) {
+        await api.updateComponentProperties(id, propIds);
       }
-      await api.setComponentMedia(loadedName, imageBase64, descriptionValue);
+      if (id !== null) {
+        await api.setComponentMedia(id, CURRENT_LANG, imageBase64, descriptionValue);
+      }
 
+      setLoadedId(id);
       setIsNew(false);
       setDescription(descriptionValue);
       setDescriptionTouched(false);
@@ -246,11 +268,12 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
   }
 
   async function handleDelete() {
+    if (loadedId === null) return;
     try {
-      await api.deleteComponent(loadedName);
-      const ns = await api.getComponentNames();
+      await api.deleteComponent(loadedId);
+      const ns = await api.getComponentNames(CURRENT_LANG);
       setNames(ns);
-      if (ns.length > 0) await loadComponent(ns[0]);
+      if (ns.length > 0) await loadComponent(ns[0].id, ns[0].name);
       else clearFields();
       onChanged();
       setInfo({ title: "Готово", text: "Компонент удалён." });
@@ -274,9 +297,14 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
             ) : (
               <Select
                 flex={1}
-                data={names}
-                value={names.includes(loadedName) ? loadedName : null}
-                onChange={(v) => v && requestAction({ kind: "load", name: v })}
+                data={names.map((n) => ({ value: String(n.id), label: n.name }))}
+                value={loadedId !== null ? String(loadedId) : null}
+                onChange={(v) => {
+                  if (v === null) return;
+                  const id = Number(v);
+                  const found = names.find((n) => n.id === id);
+                  if (found) requestAction({ kind: "load", id: found.id, name: found.name });
+                }}
                 searchable
                 clearable={false}
                 comboboxProps={{ withinPortal: true }}
@@ -294,12 +322,12 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
               key={i}
               label={`Свойство ${i + 1}`}
               placeholder="— не выбрано —"
-              data={allProperties}
-              value={propSelects[i] || null}
+              data={allProperties.map((p) => ({ value: String(p.id), label: p.name }))}
+              value={propSelects[i] !== null ? String(propSelects[i]) : null}
               disabled={!editable}
               onChange={(v) => {
-                const next = [...propSelects] as [string, string, string, string];
-                next[i] = v ?? "";
+                const next = [...propSelects] as PropIds;
+                next[i] = v !== null ? Number(v) : null;
                 setPropSelects(next);
                 recomputeDirty({ props: next });
               }}

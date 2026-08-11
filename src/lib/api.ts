@@ -7,12 +7,28 @@ import type { AddonId } from "./addons";
 
 export type FilterKind = "" | "Улучшение" | "Яд";
 
+// Реальное переключение языка — план B3. До тех пор каждый вызов, которому
+// нужен lang, использует эту константу — единая точка замены, когда язык
+// станет настоящим state вместо константы.
+export const CURRENT_LANG = "ru";
+
+export interface PropertyInfo {
+  id: number;
+  name: string;
+}
+
+export interface ComponentNameInfo {
+  id: number;
+  name: string;
+}
+
 export interface CombinationResult {
-  components: string[];
+  components: number[];
   line: string;
 }
 
 export interface PropWithType {
+  id: number;
   name: string;
   typ: string;
 }
@@ -36,32 +52,32 @@ export interface Layout {
 }
 
 export const api = {
-  getProperties: () => invoke<string[]>("get_properties"),
-  getComponentNames: () => invoke<string[]>("get_component_names"),
-  getComponentNamesFiltered: (addons: AddonId[]) => invoke<string[]>("get_component_names_filtered", { addons }),
-  getComponentProperties: (name: string) => invoke<string[]>("get_component_properties", { name }),
-  getComponentPropertiesWithTypes: (name: string) =>
-    invoke<PropWithType[]>("get_component_properties_with_types", { name }),
-  getComponentMedia: (name: string) => invoke<ComponentMedia>("get_component_media", { name }),
+  getProperties: (lang: string) => invoke<PropertyInfo[]>("get_properties", { lang }),
+  getComponentNames: (lang: string) => invoke<ComponentNameInfo[]>("get_component_names", { lang }),
+  getComponentNamesFiltered: (addons: AddonId[], lang: string) =>
+    invoke<ComponentNameInfo[]>("get_component_names_filtered", { addons, lang }),
+  getComponentProperties: (id: number, lang: string) =>
+    invoke<string[]>("get_component_properties", { id, lang }),
+  getComponentPropertiesWithTypes: (id: number, lang: string) =>
+    invoke<PropWithType[]>("get_component_properties_with_types", { id, lang }),
+  getComponentMedia: (id: number, lang: string) => invoke<ComponentMedia>("get_component_media", { id, lang }),
 
-  findCombinations: (selected: string[], filter: FilterKind, addons: AddonId[]) =>
-    invoke<CombinationResult[]>("find_combinations", { selected, filter, addons }),
-  findPairs: (filter: FilterKind, addons: AddonId[], maxResults: number) =>
-    invoke<string[]>("find_pairs", { filter, addons, maxResults }),
-  findMaxCombinations: (filter: FilterKind, addons: AddonId[], maxResults: number) =>
-    invoke<string[]>("find_max_combinations", { filter, addons, maxResults }),
+  findCombinations: (selected: number[], filter: FilterKind, addons: AddonId[], lang: string) =>
+    invoke<CombinationResult[]>("find_combinations", { selected, filter, addons, lang }),
+  findPairs: (filter: FilterKind, addons: AddonId[], maxResults: number, lang: string) =>
+    invoke<string[]>("find_pairs", { filter, addons, maxResults, lang }),
+  findMaxCombinations: (filter: FilterKind, addons: AddonId[], maxResults: number, lang: string) =>
+    invoke<string[]>("find_max_combinations", { filter, addons, maxResults, lang }),
 
-  componentExists: (name: string) => invoke<boolean>("component_exists", { name }),
-  isUserAddedComponent: (name: string) => invoke<boolean>("is_user_added_component", { name }),
-  insertComponent: (name: string, props: [string, string, string, string]) =>
-    invoke<void>("insert_component", { name, props }),
-  renameComponent: (oldName: string, newName: string) =>
-    invoke<void>("rename_component", { oldName, newName }),
-  deleteComponent: (name: string) => invoke<void>("delete_component", { name }),
-  updateComponentProperties: (name: string, props: [string, string, string, string]) =>
-    invoke<void>("update_component_properties", { name, props }),
-  setComponentMedia: (name: string, imageBase64: string | null, description: string) =>
-    invoke<void>("set_component_media", { name, imageBase64, description }),
+  componentExists: (name: string, lang: string) => invoke<boolean>("component_exists", { name, lang }),
+  isUserAddedComponent: (id: number) => invoke<boolean>("is_user_added_component", { id }),
+  insertComponent: (name: string, lang: string, props: [number, number, number, number]) =>
+    invoke<number>("insert_component", { name, lang, props }),
+  deleteComponent: (id: number) => invoke<void>("delete_component", { id }),
+  updateComponentProperties: (id: number, props: [number, number, number, number]) =>
+    invoke<void>("update_component_properties", { id, props }),
+  setComponentMedia: (id: number, lang: string, imageBase64: string | null, description: string) =>
+    invoke<void>("set_component_media", { id, lang, imageBase64, description }),
 
   pickImageFile: () => invoke<PickedImage | null>("pick_image_file"),
 
