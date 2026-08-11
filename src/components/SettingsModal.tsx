@@ -24,6 +24,7 @@ import type { AppScaleName, AppThemeName } from "../lib/appTheme";
 import { ADDON_CHECKBOX_IDS, ADDON_LABELS } from "../lib/addons";
 import type { AddonId } from "../lib/addons";
 import { LANGUAGE_OPTIONS } from "../lib/languages";
+import { HintIcon } from "./HintIcon";
 
 interface Props {
   opened: boolean;
@@ -218,7 +219,12 @@ export function SettingsModal({
                 comboboxProps={{ withinPortal: true }}
               />
               <TextInput
-                label="Макс. кол-во сочетаний"
+                label={
+                  <Group gap={6} align="center">
+                    <span>Макс. кол-во сочетаний</span>
+                    <HintIcon label="Количество комбинаций ингредиентов, отображаемое при нажатии на кнопки «Парные сочетания» и «Тройные сочетания»" />
+                  </Group>
+                }
                 value={maxCombinationsInput}
                 onChange={(e) => setMaxCombinationsInput(e.currentTarget.value.replace(/\D/g, ""))}
                 inputMode="numeric"

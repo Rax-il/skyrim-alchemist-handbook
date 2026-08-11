@@ -1,5 +1,6 @@
 import { Button, Divider, Radio, Select, Stack, Text } from "@mantine/core";
 import type { ComponentNameInfo, FilterKind, PropertyInfo } from "../lib/api";
+import { HintIcon } from "./HintIcon";
 
 type Selects = [number | null, number | null, number | null, number | null];
 
@@ -100,10 +101,22 @@ export function ControlPanel({
 
       <Divider my="sm" />
 
-      <Button variant="light" onClick={onFindPairs}>
+      <Button
+        variant="light"
+        onClick={onFindPairs}
+        rightSection={
+          <HintIcon label="Вывести сочетания двух ингредиентов, дающих максимальное количество эффектов. (Учитывает переключатель «Все»/«Улучшения»/«Яды».)" />
+        }
+      >
         Парные сочетания
       </Button>
-      <Button variant="light" onClick={onFindMaxCombinations}>
+      <Button
+        variant="light"
+        onClick={onFindMaxCombinations}
+        rightSection={
+          <HintIcon label="Вывести сочетания трёх ингредиентов, дающих максимальное количество эффектов. (Учитывает переключатель «Все»/«Улучшения»/«Яды».)" />
+        }
+      >
         Тройные сочетания
       </Button>
     </Stack>
