@@ -14,6 +14,11 @@ use crate::creations::{
 };
 use crate::rare_curios::{RARE_CURIOS_DESCRIPTION, RARE_CURIOS_INGREDIENTS, RARE_CURIOS_PROPERTIES};
 use crate::seed_data::{DAWNGUARD_INGREDIENTS, DRAGONBORN_INGREDIENTS, HEARTHFIRE_INGREDIENTS, INGREDIENTS, MEDIA, PROPERTIES};
+use crate::seed_description_translations::{
+    DESCRIPTION_TRANSLATIONS, FISHING_DESCRIPTION_TRANSLATIONS, NAME_OVERRIDES,
+    PLAGUE_DESCRIPTION_TRANSLATIONS, RARE_CURIOS_DESCRIPTION_TRANSLATIONS,
+    SAINTS_DESCRIPTION_TRANSLATIONS,
+};
 use crate::seed_translations::TRANSLATIONS;
 
 pub const TYPE_BENEFIT: &str = "Улучшение";
@@ -240,12 +245,18 @@ fn migrate_i18n(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
 
-    for (ru_name, lang, text) in TRANSLATIONS {
+    let description_by_name_lang: HashMap<(&str, &str), &str> = DESCRIPTION_TRANSLATIONS
+        .iter()
+        .map(|(name, lang, desc)| ((*name, *lang), *desc))
+        .collect();
+
+    for (ru_name, lang, text) in TRANSLATIONS.iter().chain(NAME_OVERRIDES.iter()) {
         if let Some(&id) = component_ids.get(*ru_name) {
+            let description = description_by_name_lang.get(&(*ru_name, *lang)).copied().unwrap_or("");
             tx.execute(
                 "INSERT INTO component_translations (component_id, lang, name, description)
-                 VALUES (?1, ?2, ?3, '')",
-                params![id, lang, text],
+                 VALUES (?1, ?2, ?3, ?4)",
+                params![id, lang, text, description],
             )?;
             continue;
         }
@@ -257,6 +268,40 @@ fn migrate_i18n(conn: &Connection) -> rusqlite::Result<()> {
             )?;
         }
     }
+
+    // Общие описания дополнений — второй проход, СТРОГО после основного
+    // цикла: обновляемая строка (component_id, lang) должна уже
+    // существовать (создана выше через перевод имени). UPDATE по
+    // несуществующей строке — тихий no-op, не ошибка.
+    fn apply_group_description(
+        tx: &rusqlite::Transaction,
+        component_ids: &HashMap<String, i64>,
+        names: &[&str],
+        translations: &[(&str, &str)],
+    ) -> rusqlite::Result<()> {
+        for name in names {
+            if let Some(&id) = component_ids.get(*name) {
+                for (lang, description) in translations {
+                    tx.execute(
+                        "UPDATE component_translations SET description = ?1 WHERE component_id = ?2 AND lang = ?3",
+                        params![description, id, lang],
+                    )?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    // Порядок важен: "Гнилая чешуйка"/"Огненный гриб" входят и в
+    // RARE_CURIOS_INGREDIENTS, и в SAINTS_INGREDIENTS (см. migrate_addon_ids
+    // выше — тот же конфликт уже решён для колонки addon). Rare Curios —
+    // корректный источник для этих двух имён, значит применяется ПОСЛЕДНИМ,
+    // чтобы победить.
+    apply_group_description(&tx, &component_ids, FISHING_INGREDIENTS, FISHING_DESCRIPTION_TRANSLATIONS)?;
+    apply_group_description(&tx, &component_ids, SAINTS_INGREDIENTS, SAINTS_DESCRIPTION_TRANSLATIONS)?;
+    apply_group_description(&tx, &component_ids, PLAGUE_INGREDIENTS, PLAGUE_DESCRIPTION_TRANSLATIONS)?;
+    let rare_curios_names: Vec<&str> = RARE_CURIOS_INGREDIENTS.iter().map(|(name, _)| *name).collect();
+    apply_group_description(&tx, &component_ids, &rare_curios_names, RARE_CURIOS_DESCRIPTION_TRANSLATIONS)?;
 
     tx.commit()?;
     Ok(())
@@ -1578,9 +1623,129 @@ mod rare_curios_tests {
                 |r| r.get(0),
             )
             .unwrap();
-        // Только ru-бэкфилл — плагин Plague of the Dead отсутствует в
-        // скачанном архиве официальных строк, перевода на другие языки нет.
-        assert_eq!(translation_count, 1);
+        // Плагин Plague of the Dead отсутствует в скачанном архиве
+        // официальных строк — TRANSLATIONS (пайплайн Bethesda) не даёт ни
+        // одного перевода. Но с плана "механизм перевода описаний" пробел
+        // закрывает NAME_OVERRIDES (ручной перевод, не из пайплайна) — 1
+        // ru-бэкфилл + 8 записей NAME_OVERRIDES = 9, а не "только ru", как
+        // было исторически (название теста сохранено ради истории находки,
+        // хотя сейчас оно уже не описывает поведение буквально).
+        assert_eq!(translation_count, 9);
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// До этого плана "Смертная плоть" не имела перевода имени ни на одном
+    /// не-ru языке (единственный пробел Plan A). NAME_OVERRIDES закрывает
+    /// его напрямую (не через официальный пайплайн).
+    #[test]
+    fn migration_applies_name_overrides() {
+        let db_path = temp_db_path("i18n_name_overrides");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let component_id = component_id_by_name(&conn, "Смертная плоть");
+        let en_name: String = conn
+            .query_row(
+                "SELECT name FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(en_name, "Flesh of the Dead");
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// DESCRIPTION_TRANSLATIONS сейчас пуст (наполняется отдельно, партиями
+    /// — см. design doc "Порядок выполнения"), значит для любого обычного
+    /// ингредиента description на non-ru языке должен оставаться пустой
+    /// строкой (не мусором, не паникой) — тот же принцип, что уже применён
+    /// к именам без официального совпадения. Как только первая партия
+    /// DESCRIPTION_TRANSLATIONS появится, этот тест стоит расширить
+    /// проверкой конкретного переведённого текста.
+    #[test]
+    fn migration_defaults_missing_description_to_empty() {
+        let db_path = temp_db_path("i18n_description_smoke");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+        let component_id = component_id_by_name(&conn, "Белянка");
+        let en_description: String = conn
+            .query_row(
+                "SELECT description FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(en_description, "", "DESCRIPTION_TRANSLATIONS ещё пуст — должно быть пусто, не мусор");
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Общее описание Rare Curios должно долетать до КАЖДОГО ингредиента
+    /// группы на не-ru языке — не только до "первого" или дублироваться в
+    /// исходных данных.
+    #[test]
+    fn migration_applies_rare_curios_group_description() {
+        let db_path = temp_db_path("i18n_rare_curios_group_desc");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let component_id = component_id_by_name(&conn, "Шляпки гифоломы");
+        let en_description: String = conn
+            .query_row(
+                "SELECT description FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(
+            en_description.starts_with("A rare find from beyond Skyrim"),
+            "получено: {en_description}"
+        );
+
+        // Второй ингредиент той же группы — тот же текст, не пусто.
+        let component_id2 = component_id_by_name(&conn, "Гнилая чешуйка");
+        let en_description2: String = conn
+            .query_row(
+                "SELECT description FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id2],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(en_description2, en_description);
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// "Смертная плоть" не входила в TRANSLATIONS (нет официального
+    /// совпадения) — до NAME_OVERRIDES у неё вообще не было non-ru строки
+    /// component_translations, значит и общее описание Plague of the Dead
+    /// не могло долететь (UPDATE по несуществующей строке — no-op). После
+    /// этого плана NAME_OVERRIDES создаёт строку в основном цикле, и второй
+    /// проход по PLAGUE_INGREDIENTS корректно её обновляет.
+    #[test]
+    fn migration_applies_plague_group_description_via_name_override() {
+        let db_path = temp_db_path("i18n_plague_group_desc");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let component_id = component_id_by_name(&conn, "Смертная плоть");
+        let en_description: String = conn
+            .query_row(
+                "SELECT description FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![component_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(
+            en_description.starts_with("A sinister find from the Plague of the Dead add-on"),
+            "получено: {en_description}"
+        );
 
         drop(conn);
         let _ = std::fs::remove_file(&db_path);
