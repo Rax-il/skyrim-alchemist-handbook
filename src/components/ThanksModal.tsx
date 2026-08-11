@@ -5,6 +5,7 @@ import ethereumQr from "../assets/donation-ethereum-qr.png";
 import ethereumBanner from "../assets/donation-ethereum-metamask.png";
 import solanaQr from "../assets/donation-solana-qr.png";
 import arbitrumQr from "../assets/donation-arbitrum-qr.png";
+import tronQr from "../assets/donation-tron-qr.png";
 
 interface Props {
   opened: boolean;
@@ -40,6 +41,13 @@ const DONATION_OPTIONS: DonationOption[] = [
     label: "Сеть Arbitrum",
     qrSrc: arbitrumQr,
     address: "0x0ce4e6492Be3C088bC13E2ba74Ffe0EE61514995",
+    bannerSrc: ethereumBanner,
+  },
+  {
+    value: "tron",
+    label: "Сеть Tron",
+    qrSrc: tronQr,
+    address: "TTRwtz3B7dBjwhUowFuqR83AGdrwRxAXuu",
     bannerSrc: ethereumBanner,
   },
 ];
