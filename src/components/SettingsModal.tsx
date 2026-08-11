@@ -23,6 +23,7 @@ import {
 import type { AppScaleName, AppThemeName } from "../lib/appTheme";
 import { ADDON_CHECKBOX_IDS, ADDON_LABELS } from "../lib/addons";
 import type { AddonId } from "../lib/addons";
+import { LANGUAGE_OPTIONS } from "../lib/languages";
 
 interface Props {
   opened: boolean;
@@ -31,6 +32,8 @@ interface Props {
   onAppThemeChange: (theme: AppThemeName) => void;
   scale: AppScaleName;
   onScaleChange: (scale: AppScaleName) => void;
+  currentLanguage: string;
+  onLanguageChange: (lang: string) => void;
   enabledAddons: AddonId[];
   onEnabledAddonsChange: (addons: AddonId[]) => void;
   maxCombinations: number;
@@ -72,19 +75,6 @@ const THEME_SCHEME_BY_LABEL: Record<string, MantineColorScheme> = {
   Тёмная: "dark",
 };
 
-// Официальные локализации Skyrim (~8) + китайский (только текстовый перевод).
-const LANGUAGE_OPTIONS = [
-  { value: "ru", label: "🇷🇺 Русский" },
-  { value: "en", label: "🇬🇧 English" },
-  { value: "fr", label: "🇫🇷 Français" },
-  { value: "de", label: "🇩🇪 Deutsch" },
-  { value: "it", label: "🇮🇹 Italiano" },
-  { value: "es", label: "🇪🇸 Español" },
-  { value: "pl", label: "🇵🇱 Polski" },
-  { value: "ja", label: "🇯🇵 日本語" },
-  { value: "zh-Hant", label: "🇨🇳 中文" },
-];
-
 export function SettingsModal({
   opened,
   onClose,
@@ -92,6 +82,8 @@ export function SettingsModal({
   onAppThemeChange,
   scale: appScale,
   onScaleChange,
+  currentLanguage,
+  onLanguageChange,
   enabledAddons,
   onEnabledAddonsChange,
   maxCombinations,
@@ -100,7 +92,7 @@ export function SettingsModal({
   const { colorScheme, setColorScheme } = useMantineColorScheme();
 
   const [scale, setScale] = useState<AppScaleName>(appScale);
-  const [language, setLanguage] = useState<string>("ru");
+  const [language, setLanguage] = useState<string>(currentLanguage);
   const [theme, setTheme] = useState<string>(
     appTheme === "skyrim" ? SKYRIM_LABEL : THEME_LABEL_BY_SCHEME[colorScheme],
   );
@@ -109,20 +101,42 @@ export function SettingsModal({
   // onChange), а не число, чтобы не мешать вводу (например, стереть всё и
   // напечатать заново).
   const [maxCombinationsInput, setMaxCombinationsInput] = useState(String(maxCombinations));
+  const [languageWarningOpen, setLanguageWarningOpen] = useState(false);
 
   // При каждом открытии окна — подхватить реально применённые сейчас тему,
-  // масштаб и набор дополнений (а не то, что было выбрано в списке, но не
-  // применено).
+  // масштаб, язык и набор дополнений (а не то, что было выбрано в списке,
+  // но не применено).
   useEffect(() => {
     if (opened) {
       setTheme(appTheme === "skyrim" ? SKYRIM_LABEL : THEME_LABEL_BY_SCHEME[colorScheme]);
       setScale(appScale);
+      setLanguage(currentLanguage);
       setCheckedAddons(enabledAddons);
       setMaxCombinationsInput(String(maxCombinations));
     }
-  }, [opened, appTheme, colorScheme, appScale, enabledAddons, maxCombinations]);
+  }, [opened, appTheme, colorScheme, appScale, currentLanguage, enabledAddons, maxCombinations]);
 
+  // Смена языка — единственная настройка, которая может скрыть уже
+  // существующие данные пользователя (его собственные ингредиенты, видимые
+  // только на языке создания, см. design doc, раздел B3+B4). Если язык
+  // реально меняется и у пользователя есть хотя бы один такой ингредиент —
+  // сначала спрашиваем подтверждение, весь остальной Apply откладывается до
+  // ответа.
   function handleApply() {
+    if (language !== currentLanguage) {
+      api.hasUserAddedComponents().then((has) => {
+        if (has) {
+          setLanguageWarningOpen(true);
+        } else {
+          applyAll();
+        }
+      });
+      return;
+    }
+    applyAll();
+  }
+
+  function applyAll() {
     if (theme === SKYRIM_LABEL) {
       onAppThemeChange("skyrim");
     } else {
@@ -141,6 +155,11 @@ export function SettingsModal({
       api.saveScale(scale);
     }
     onScaleChange(scale);
+
+    if (language !== currentLanguage) {
+      onLanguageChange(language);
+      api.saveLanguage(language);
+    }
 
     onEnabledAddonsChange(checkedAddons);
     api.saveAddons(checkedAddons);
@@ -258,6 +277,33 @@ export function SettingsModal({
           <Button onClick={handleApply}>Применить</Button>
         </Group>
       </div>
+
+      <Modal
+        opened={languageWarningOpen}
+        onClose={() => setLanguageWarningOpen(false)}
+        title="Подтверждение"
+        size="sm"
+      >
+        <Text size="sm" mb="md">
+          У вас есть ингредиенты, добавленные вручную — они видны только на
+          языке, на котором были созданы. После смены языка они пропадут из
+          списков (ничего не удаляется — снова появятся, если вернуться на
+          прежний язык). Продолжить?
+        </Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setLanguageWarningOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => {
+              setLanguageWarningOpen(false);
+              applyAll();
+            }}
+          >
+            Продолжить
+          </Button>
+        </Group>
+      </Modal>
     </Modal>
   );
 }
