@@ -1659,15 +1659,13 @@ mod rare_curios_tests {
         let _ = std::fs::remove_file(&db_path);
     }
 
-    /// DESCRIPTION_TRANSLATIONS сейчас пуст (наполняется отдельно, партиями
-    /// — см. design doc "Порядок выполнения"), значит для любого обычного
-    /// ингредиента description на non-ru языке должен оставаться пустой
-    /// строкой (не мусором, не паникой) — тот же принцип, что уже применён
-    /// к именам без официального совпадения. Как только первая партия
-    /// DESCRIPTION_TRANSLATIONS появится, этот тест стоит расширить
-    /// проверкой конкретного переведённого текста.
+    /// Все 110 базовых ингредиентов переведены (см. batch 1-7 в
+    /// DESCRIPTION_TRANSLATIONS) — тест обновлён с "проверки пустоты"
+    /// (историческое поведение, пока переводы ещё не были заполнены) на
+    /// проверку конкретного переведённого текста, как и предполагалось в
+    /// прежнем комментарии к этому тесту.
     #[test]
-    fn migration_defaults_missing_description_to_empty() {
+    fn migration_applies_description_translation() {
         let db_path = temp_db_path("i18n_description_smoke");
         let _ = std::fs::remove_file(&db_path);
         let conn = ensure_db(&db_path).unwrap();
@@ -1679,7 +1677,10 @@ mod rare_curios_tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(en_description, "", "DESCRIPTION_TRANSLATIONS ещё пуст — должно быть пусто, не мусор");
+        assert_eq!(
+            en_description,
+            "A mushroom that grows in the caves of Skyrim — especially abundant in Rebel's Cairn and Draft Chasm. South of Falkreath there is even a notable spot called the \"White Mushroom Circle\" — a clearing entirely covered in these mushrooms."
+        );
 
         drop(conn);
         let _ = std::fs::remove_file(&db_path);
