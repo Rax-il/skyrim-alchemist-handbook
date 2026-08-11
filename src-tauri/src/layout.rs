@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 use crate::addons::Addon;
 
 const SCALE_OPTIONS: &[&str] = &["Мелкий", "Нормальный", "Крупный"];
+/// Коды языков — те же, что в SettingsModal.tsx's LANGUAGE_OPTIONS /
+/// component_translations.lang (zh-Hant, не zh — см. i18n-storage-design.md).
+const LANGUAGE_OPTIONS: &[&str] = &["ru", "en", "fr", "de", "it", "es", "pl", "ja", "zh-Hant"];
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Layout {
@@ -27,10 +30,18 @@ pub struct Layout {
     /// сочетаний" (см. SettingsModal.tsx, поле "Макс. кол-во сочетаний").
     #[serde(default = "default_max_combinations")]
     pub max_combinations: u32,
+    /// Текущий выбранный язык (план B3) — раньше был захардкожен константой
+    /// CURRENT_LANG на фронтенде, теперь настоящий persisted state.
+    #[serde(default = "default_language")]
+    pub language: String,
 }
 
 fn default_scale() -> String {
     "Нормальный".to_string()
+}
+
+fn default_language() -> String {
+    "ru".to_string()
 }
 
 /// "Все дополнения включены" — состояние по умолчанию для только что
@@ -52,6 +63,7 @@ impl Default for Layout {
             scale: default_scale(),
             enabled_addons: default_addons(),
             max_combinations: default_max_combinations(),
+            language: default_language(),
         }
     }
 }
@@ -78,6 +90,7 @@ pub fn load() -> Layout {
         scale: if SCALE_OPTIONS.contains(&l.scale.as_str()) { l.scale } else { default.scale },
         enabled_addons,
         max_combinations: if l.max_combinations >= 1 { l.max_combinations } else { default.max_combinations },
+        language: if LANGUAGE_OPTIONS.contains(&l.language.as_str()) { l.language } else { default.language },
     }
 }
 
@@ -119,5 +132,13 @@ pub fn save_panel(side_panel_width: f64, split_ratio: f64) {
 pub fn save_scale(scale: &str) {
     let mut current = load();
     current.scale = scale.to_string();
+    save(&current);
+}
+
+/// Сохраняет выбранный язык, не трогая остальную раскладку — по той же
+/// причине, что и save_scale/save_addons.
+pub fn save_language(language: &str) {
+    let mut current = load();
+    current.language = language.to_string();
     save(&current);
 }
