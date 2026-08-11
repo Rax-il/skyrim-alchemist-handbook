@@ -11,14 +11,16 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
-import { api, CURRENT_LANG } from "../lib/api";
+import { api } from "../lib/api";
 import type { ComponentNameInfo, PropertyInfo } from "../lib/api";
 import { GOOD_QUALITY_SIZE, useAdaptiveImageSize } from "../lib/useAdaptiveImageSize";
+import { LANGUAGE_OPTIONS } from "../lib/languages";
 
 interface Props {
   opened: boolean;
   onClose: () => void;
   onChanged: () => void; // список компонентов на главном экране мог измениться
+  lang: string;
 }
 
 type PropIds = [number | null, number | null, number | null, number | null];
@@ -33,7 +35,7 @@ const emptySnapshot: Snapshot = { props: [null, null, null, null], imageBase64: 
 const PREVIEW_BOX = GOOD_QUALITY_SIZE;
 const DESCRIPTION_HEIGHT = 85;
 
-export function EditorModal({ opened, onClose, onChanged }: Props) {
+export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
   const [names, setNames] = useState<ComponentNameInfo[]>([]);
   const [allProperties, setAllProperties] = useState<PropertyInfo[]>([]);
 
@@ -84,9 +86,9 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
 
   useEffect(() => {
     if (!opened) return;
-    api.getProperties(CURRENT_LANG).then(setAllProperties).catch(() => {});
+    api.getProperties(lang).then(setAllProperties).catch(() => {});
     api
-      .getComponentNames(CURRENT_LANG)
+      .getComponentNames(lang)
       .then((ns) => {
         setNames(ns);
         if (ns.length > 0) loadComponent(ns[0].id, ns[0].name);
@@ -126,8 +128,8 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
 
   async function loadComponent(id: number, name: string) {
     const [props, media, userAdded] = await Promise.all([
-      api.getComponentPropertiesWithTypes(id, CURRENT_LANG),
-      api.getComponentMedia(id, CURRENT_LANG),
+      api.getComponentPropertiesWithTypes(id, lang),
+      api.getComponentMedia(id, lang),
       api.isUserAddedComponent(id),
     ]);
     const propIds: PropIds = [null, null, null, null];
@@ -188,7 +190,7 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
       setInfo({ title: "Ошибка", text: "Введите название ингредиента." });
       return;
     }
-    if (await api.componentExists(name, CURRENT_LANG)) {
+    if (await api.componentExists(name, lang)) {
       setInfo({ title: "Ошибка", text: `Ингредиент «${name}» уже существует.` });
       return;
     }
@@ -244,14 +246,14 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
     try {
       let id = loadedId;
       if (isNew) {
-        id = await api.insertComponent(loadedName, CURRENT_LANG, propIds);
-        const ns = await api.getComponentNames(CURRENT_LANG);
+        id = await api.insertComponent(loadedName, lang, propIds);
+        const ns = await api.getComponentNames(lang);
         setNames(ns);
       } else if (editable && id !== null) {
         await api.updateComponentProperties(id, propIds);
       }
       if (id !== null) {
-        await api.setComponentMedia(id, CURRENT_LANG, imageBase64, descriptionValue);
+        await api.setComponentMedia(id, lang, imageBase64, descriptionValue);
       }
 
       setLoadedId(id);
@@ -271,7 +273,7 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
     if (loadedId === null) return;
     try {
       await api.deleteComponent(loadedId);
-      const ns = await api.getComponentNames(CURRENT_LANG);
+      const ns = await api.getComponentNames(lang);
       setNames(ns);
       if (ns.length > 0) await loadComponent(ns[0].id, ns[0].name);
       else clearFields();
@@ -377,17 +379,26 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
           </Group>
         </div>
 
-        <Textarea
-          key={loadedName}
-          label="Описание"
-          styles={{ input: { minHeight: DESCRIPTION_HEIGHT } }}
-          ref={descriptionRef}
-          defaultValue={description}
-          onChange={() => {
-            setDescriptionTouched(true);
-            setDirty(true);
-          }}
-        />
+        <div>
+          <Group gap={6} align="baseline">
+            <Text size="sm" fw={700}>
+              Описание
+            </Text>
+            <Text size="xs" c="dimmed">
+              (Только для текущего языка)
+            </Text>
+          </Group>
+          <Textarea
+            key={loadedName}
+            styles={{ input: { minHeight: DESCRIPTION_HEIGHT } }}
+            ref={descriptionRef}
+            defaultValue={description}
+            onChange={() => {
+              setDescriptionTouched(true);
+              setDirty(true);
+            }}
+          />
+        </div>
 
         <Group justify="space-between" mt="xs">
           <Group>
@@ -419,6 +430,10 @@ export function EditorModal({ opened, onClose, onChanged }: Props) {
           defaultValue=""
           data-autofocus
         />
+        <Text size="xs" c="dimmed" mt={4}>
+          Ингредиент будет виден только при выбранном языке —{" "}
+          {LANGUAGE_OPTIONS.find((l) => l.value === lang)?.label ?? lang}.
+        </Text>
         <Group justify="flex-end" mt="md">
           <Button variant="default" onClick={() => setNewDialogOpen(false)}>
             Отмена
