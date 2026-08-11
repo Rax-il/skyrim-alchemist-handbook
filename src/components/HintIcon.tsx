@@ -10,17 +10,23 @@ import { IconHelpCircle } from "@tabler/icons-react";
 
 interface HintIconProps {
   label: string;
+  // Встроенный в кнопку вариант (rightSection) — фиксированный серый цвет
+  // на некоторых темах кнопки читался как белый и терялся на фоне. Вместо
+  // подбора цвета под каждую тему значок просто наследует цвет текста самой
+  // кнопки (inline style: побеждает CSS-класс ActionIcon по специфичности).
+  inheritColor?: boolean;
 }
 
-export function HintIcon({ label }: HintIconProps) {
+export function HintIcon({ label, inheritColor = false }: HintIconProps) {
   return (
     <Tooltip label={label} multiline w={260} withArrow>
       <ActionIcon
         variant="subtle"
-        color="gray"
+        color={inheritColor ? undefined : "gray"}
         size="xs"
         onClick={(e) => e.stopPropagation()}
         aria-label="Подсказка"
+        style={inheritColor ? { color: "inherit" } : undefined}
       >
         <IconHelpCircle size={14} />
       </ActionIcon>

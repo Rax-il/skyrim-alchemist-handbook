@@ -385,9 +385,6 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
             <Text size="sm" fw={700}>
               Описание
             </Text>
-            <Text size="xs" c="dimmed">
-              (Только для текущего языка)
-            </Text>
             <HintIcon label="Корректировки описания ингредиента будут сохранены только для текущего языка" />
           </Group>
           <Textarea
