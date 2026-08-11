@@ -3,6 +3,7 @@ import { CloseButton, Modal, Select, Text, Textarea } from "@mantine/core";
 import portrait from "../assets/thanks-portrait.png";
 import ethereumQr from "../assets/donation-ethereum-qr.png";
 import ethereumBanner from "../assets/donation-ethereum-metamask.png";
+import solanaQr from "../assets/donation-solana-qr.png";
 
 interface Props {
   opened: boolean;
@@ -17,13 +18,20 @@ interface DonationOption {
   bannerSrc: string;
 }
 
-// Наполняется поэтапно — пока только один вариант.
+// Наполняется поэтапно.
 const DONATION_OPTIONS: DonationOption[] = [
   {
     value: "ethereum",
     label: "Сеть Ethereum",
     qrSrc: ethereumQr,
     address: "0x0ce4e6492Be3C088bC13E2ba74Ffe0EE61514995",
+    bannerSrc: ethereumBanner,
+  },
+  {
+    value: "solana",
+    label: "Сеть Solana",
+    qrSrc: solanaQr,
+    address: "8rcbGs2SS4Zm9gGYucqWQmrnTx5BdDgDPg1LvbiNXJwe",
     bannerSrc: ethereumBanner,
   },
 ];
