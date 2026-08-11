@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Group, Menu, Modal, Stack, Text } from "@mantine/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { api, CURRENT_LANG } from "./lib/api";
+import { api } from "./lib/api";
 import type { ComponentNameInfo, CombinationResult, FilterKind, PropertyInfo } from "./lib/api";
 import { useDragHandle } from "./lib/useDrag";
 import { ControlPanel } from "./components/ControlPanel";
@@ -19,6 +19,7 @@ import type { AddonId } from "./lib/addons";
 
 const HANDLE_SIZE = 8;
 const DEFAULT_MAX_COMBINATIONS = 100;
+const DEFAULT_LANGUAGE = "ru";
 
 interface Props {
   appTheme: AppThemeName;
@@ -67,18 +68,20 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   // Ограничение числа результатов "Парных"/"Тройных сочетаний" (см.
   // SettingsModal). Дефолт — пока сохранённые настройки не подгрузились.
   const [maxCombinations, setMaxCombinations] = useState(DEFAULT_MAX_COMBINATIONS);
+  // Текущий язык (план B3) — раньше был захардкоженной константой CURRENT_LANG.
+  const [language, setLanguage] = useState(DEFAULT_LANGUAGE);
 
-  // --- Начальная загрузка: список свойств, сохранённая раскладка (список
-  // компонентов, ограниченный дополнениями, подтягивается отдельным
-  // эффектом ниже — он же сработает повторно, когда сохранённый набор
-  // дополнений подгрузится из getLayout и отличается от дефолтного) ---
+  // --- Начальная загрузка: сохранённая раскладка (список свойств и список
+  // компонентов, ограниченный дополнениями и языком, подтягиваются отдельным
+  // эффектом ниже — он же сработает повторно, когда сохранённые дополнения
+  // и/или язык подгрузятся из getLayout и отличаются от дефолтных) ---
   useEffect(() => {
-    api.getProperties(CURRENT_LANG).then(setProperties);
     api.getLayout().then((l) => {
       setSidePanelWidth(l.side_panel_width);
       setSplitRatio(l.split_ratio);
       setEnabledAddons(l.enabled_addons);
       setMaxCombinations(l.max_combinations);
+      setLanguage(l.language);
     });
   }, []);
 
@@ -92,14 +95,18 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
     }, 400);
   }, [sidePanelWidth, splitRatio]);
 
-  // --- Список ингредиентов для выбора компонента, ограниченный включёнными
-  // дополнениями. Срабатывает и при первой загрузке (с дефолтным "все
-  // включены"), и при каждом применении новых настроек в SettingsModal.
+  // --- Список свойств и список ингредиентов, ограниченный включёнными
+  // дополнениями и текущим языком. Срабатывает при первой загрузке (с
+  // дефолтными значениями), при каждом применении новых настроек в
+  // SettingsModal (дополнения ИЛИ язык) и при смене языка через Настройки.
   // Прежний выбранный компонент и результаты предыдущего поиска могли
-  // ссылаться на теперь скрытые ингредиенты — сбрасываем оба, чтобы не
-  // показывать стухшие данные; пользователь просто ищет заново.
+  // ссылаться на теперь скрытые ингредиенты (другой набор дополнений или
+  // язык, в котором их вообще нет — см. design doc про пользовательские
+  // ингредиенты) — сбрасываем оба, чтобы не показывать стухшие данные;
+  // пользователь просто ищет заново.
   useEffect(() => {
-    api.getComponentNamesFiltered(enabledAddons, CURRENT_LANG).then((names) => {
+    api.getProperties(language).then(setProperties);
+    api.getComponentNamesFiltered(enabledAddons, language).then((names) => {
       setComponentNames(names);
       setComponentSelect((prev) => (prev !== null && names.some((n) => n.id === prev) ? prev : null));
     });
@@ -109,11 +116,11 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
     setBottomMode({ kind: "list" });
     setResults([]);
     setResultsHeader("Найдено 0 комбинаций");
-  }, [enabledAddons]);
+  }, [enabledAddons, language]);
 
   function refreshLists() {
-    api.getProperties(CURRENT_LANG).then(setProperties);
-    api.getComponentNamesFiltered(enabledAddons, CURRENT_LANG).then(setComponentNames);
+    api.getProperties(language).then(setProperties);
+    api.getComponentNamesFiltered(enabledAddons, language).then(setComponentNames);
   }
 
   function info_(title: string, text: string) {
@@ -170,7 +177,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       return;
     }
     try {
-      const found = await api.findCombinations(chosen, filter, enabledAddons, CURRENT_LANG);
+      const found = await api.findCombinations(chosen, filter, enabledAddons, language);
       lastCombosRef.current = found;
       const nameById = new Map(componentNames.map((c) => [c.id, c.name]));
       const enabled: Record<number, boolean> = {};
@@ -198,14 +205,14 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       return;
     }
     try {
-      const props = await api.getComponentProperties(componentSelect, CURRENT_LANG);
+      const props = await api.getComponentProperties(componentSelect, language);
       const selectedName = componentNames.find((c) => c.id === componentSelect)?.name ?? "";
       lastCombosRef.current = [];
       setEnabledComponents({});
       setTopMode({ kind: "properties", props });
       setResultsHeader(selectedName);
 
-      const media = await api.getComponentMedia(componentSelect, CURRENT_LANG);
+      const media = await api.getComponentMedia(componentSelect, language);
       setBottomMode({
         kind: "media",
         name: selectedName,
@@ -219,7 +226,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
 
   async function handleFindPairs() {
     try {
-      const found = await api.findPairs(filter, enabledAddons, maxCombinations, CURRENT_LANG);
+      const found = await api.findPairs(filter, enabledAddons, maxCombinations, language);
       lastCombosRef.current = [];
       setEnabledComponents({});
       setTopMode({ kind: "checklist", items: [] });
@@ -231,7 +238,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
 
   async function handleFindMaxCombinations() {
     try {
-      const found = await api.findMaxCombinations(filter, enabledAddons, maxCombinations, CURRENT_LANG);
+      const found = await api.findMaxCombinations(filter, enabledAddons, maxCombinations, language);
       lastCombosRef.current = [];
       setEnabledComponents({});
       setTopMode({ kind: "checklist", items: [] });
@@ -378,6 +385,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
         onChanged={() => {
           refreshLists();
         }}
+        lang={language}
       />
 
       <AboutModal
@@ -398,6 +406,8 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
         onAppThemeChange={onAppThemeChange}
         scale={scale}
         onScaleChange={onScaleChange}
+        currentLanguage={language}
+        onLanguageChange={setLanguage}
         enabledAddons={enabledAddons}
         onEnabledAddonsChange={setEnabledAddons}
         maxCombinations={maxCombinations}
