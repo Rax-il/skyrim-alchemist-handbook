@@ -195,11 +195,19 @@ fn migrate_i18n(conn: &Connection) -> rusqlite::Result<()> {
     // producing a "near DO: syntax error". The documented workaround is a
     // WHERE clause on the SELECT so "ON CONFLICT" can't be mistaken for
     // part of the FROM clause; see https://www.sqlite.org/lang_upsert.html.
+    // Addon::UserAdded исключён из обоих шагов ниже (бэкфилл ru и стирание
+    // не-ru) — см. план B3/B4: legacy-колонки components.name/description
+    // для такого компонента могут содержать текст НЕ на русском (если
+    // insert_component/set_component_media вызывались под другим активным
+    // языком), и слепой бэкфилл ошибочно записал бы этот текст как "русский
+    // перевод". Переводы Addon::UserAdded полностью на совести
+    // insert_component/set_component_media — они уже пишут напрямую в
+    // component_translations под нужным lang.
     tx.execute(
         "INSERT INTO component_translations (component_id, lang, name, description)
-         SELECT id, 'ru', name, description FROM components WHERE true
+         SELECT id, 'ru', name, description FROM components WHERE addon != ?1
          ON CONFLICT(component_id, lang) DO UPDATE SET name = excluded.name, description = excluded.description",
-        [],
+        params![Addon::UserAdded.as_str()],
     )?;
     tx.execute(
         "INSERT INTO property_translations (property_id, lang, name)
@@ -208,13 +216,17 @@ fn migrate_i18n(conn: &Connection) -> rusqlite::Result<()> {
         [],
     )?;
 
-    tx.execute("DELETE FROM component_translations WHERE lang <> 'ru'", [])?;
+    tx.execute(
+        "DELETE FROM component_translations
+         WHERE lang <> 'ru' AND component_id NOT IN (SELECT id FROM components WHERE addon = ?1)",
+        params![Addon::UserAdded.as_str()],
+    )?;
     tx.execute("DELETE FROM property_translations WHERE lang <> 'ru'", [])?;
 
     let mut component_ids: HashMap<String, i64> = HashMap::new();
     {
-        let mut stmt = tx.prepare("SELECT id, name FROM components")?;
-        let mut rows = stmt.query([])?;
+        let mut stmt = tx.prepare("SELECT id, name FROM components WHERE addon != ?1")?;
+        let mut rows = stmt.query(params![Addon::UserAdded.as_str()])?;
         while let Some(row) = rows.next()? {
             component_ids.insert(row.get(1)?, row.get(0)?);
         }
@@ -608,13 +620,27 @@ pub fn component_addon(conn: &Connection, component_id: i64) -> rusqlite::Result
     Ok(raw.and_then(|s| Addon::from_id(&s)))
 }
 
+/// Есть ли хотя бы один пользовательский ингредиент (Addon::UserAdded) —
+/// используется перед предупреждением о смене языка (см. план B3/B4): такие
+/// ингредиенты видны только на языке, на котором были созданы, и при смене
+/// языка пропадают из списков.
+pub fn has_user_added_components(conn: &Connection) -> rusqlite::Result<bool> {
+    conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM components WHERE addon = ?1)",
+        params![Addon::UserAdded.as_str()],
+        |r| r.get(0),
+    )
+}
+
 /// Сохраняет картинку (байты выбранного пользователем файла — либо None,
 /// чтобы убрать картинку) и описание компонента. Пишет и в legacy-колонку
-/// components.description (источник для бэкфилла migrate_i18n при
-/// следующем запуске — см. B1), и напрямую делает upsert в
-/// component_translations для переданного lang — иначе правка не была бы
-/// видна до перезапуска программы. lang — настоящий параметр (см. Global
-/// Constraints плана B2a, никакого хардкода внутри Rust-кода); используется
+/// components.description (источник бэкфилла migrate_i18n для lang='ru' —
+/// см. B1 — но только для официальных компонентов: у Addon::UserAdded
+/// migrate_i18n эту колонку с плана B3 игнорирует, см. её комментарий), и
+/// напрямую делает upsert в component_translations для переданного lang —
+/// иначе правка не была бы видна до перезапуска программы. lang — настоящий
+/// параметр (см. Global Constraints плана B2a, никакого хардкода внутри
+/// Rust-кода); используется
 /// upsert (INSERT ... ON CONFLICT), а не голый UPDATE, потому что строка
 /// component_translations для (id, lang) может ещё не существовать —
 /// например, если компонент создан на другом языке. Поведение при
@@ -663,8 +689,10 @@ pub fn component_exists(conn: &Connection, name: &str, lang: &str) -> rusqlite::
 /// помечается Addon::UserAdded явно (не полагаемся на DEFAULT колонки) —
 /// это единственный путь, которым в базе вообще может появиться такая
 /// пометка (см. addons.rs). Имя пишется и в legacy-колонку components.name
-/// (источник, из которого migrate_i18n бэкфиллит lang='ru' при следующем
-/// запуске — см. B1), и напрямую в component_translations для lang, на
+/// (для официальных компонентов — источник, из которого migrate_i18n
+/// бэкфиллит lang='ru', см. B1; для Addon::UserAdded с плана B3
+/// migrate_i18n эту колонку игнорирует — легаси-запись остаётся чисто
+/// историческим артефактом), и напрямую в component_translations для lang, на
 /// котором ингредиент создан — иначе созданный только что компонент не
 /// отображался бы до перезапуска программы. Возвращает id новой записи.
 pub fn insert_component(
@@ -1236,6 +1264,82 @@ mod rare_curios_tests {
         assert_eq!(component_addon(&conn, new_id).unwrap(), Some(Addon::UserAdded));
 
         drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn has_user_added_components_reflects_state() {
+        let db_path = temp_db_path("has_user_added");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        assert!(
+            !has_user_added_components(&conn).unwrap(),
+            "свежая база не должна иметь пользовательских ингредиентов"
+        );
+
+        let props = [
+            property_id_by_name(&conn, "Бешенство"),
+            property_id_by_name(&conn, "Замедление"),
+            property_id_by_name(&conn, "Страх"),
+            property_id_by_name(&conn, "Паралич"),
+        ];
+        let new_id = insert_component(&conn, "Тестовый ингредиент", "ru", &props).unwrap();
+        assert!(has_user_added_components(&conn).unwrap());
+
+        delete_component(&conn, new_id).unwrap();
+        assert!(!has_user_added_components(&conn).unwrap());
+
+        drop(conn);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Два момента сразу: (1) migrate_i18n не должна путать легаси-колонку
+    /// components.name пользовательского компонента, созданного не на
+    /// русском, с "русским переводом" — иначе компонент стал бы (неверно)
+    /// видимым в ru-списке под нерусским названием; (2) не-ru строка
+    /// перевода, созданная insert_component напрямую, не должна стираться
+    /// стирающим шагом миграции для lang <> 'ru' (раньше стирала).
+    #[test]
+    fn migrate_i18n_does_not_touch_user_added_translations() {
+        let db_path = temp_db_path("i18n_user_added_untouched");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+
+        let props = [
+            property_id_by_name(&conn, "Бешенство"),
+            property_id_by_name(&conn, "Замедление"),
+            property_id_by_name(&conn, "Страх"),
+            property_id_by_name(&conn, "Паралич"),
+        ];
+        let new_id = insert_component(&conn, "Test Ingredient", "en", &props).unwrap();
+
+        let ru_row: Option<String> = conn
+            .query_row(
+                "SELECT name FROM component_translations WHERE component_id = ?1 AND lang = 'ru'",
+                params![new_id],
+                |r| r.get(0),
+            )
+            .optional()
+            .unwrap();
+        assert_eq!(
+            ru_row, None,
+            "migrate_i18n не должна создавать ru-перевод из legacy-колонки для пользовательского компонента"
+        );
+
+        drop(conn);
+        let conn2 = ensure_db(&db_path).unwrap();
+
+        let en_name: String = conn2
+            .query_row(
+                "SELECT name FROM component_translations WHERE component_id = ?1 AND lang = 'en'",
+                params![new_id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(en_name, "Test Ingredient", "en-перевод пользовательского компонента не должен стираться");
+
+        drop(conn2);
         let _ = std::fs::remove_file(&db_path);
     }
 

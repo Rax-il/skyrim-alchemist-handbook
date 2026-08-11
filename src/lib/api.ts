@@ -7,11 +7,6 @@ import type { AddonId } from "./addons";
 
 export type FilterKind = "" | "Улучшение" | "Яд";
 
-// Реальное переключение языка — план B3. До тех пор каждый вызов, которому
-// нужен lang, использует эту константу — единая точка замены, когда язык
-// станет настоящим state вместо константы.
-export const CURRENT_LANG = "ru";
-
 export interface PropertyInfo {
   id: number;
   name: string;
@@ -49,6 +44,7 @@ export interface Layout {
   scale: string;
   enabled_addons: AddonId[];
   max_combinations: number;
+  language: string;
 }
 
 export const api = {
@@ -71,6 +67,7 @@ export const api = {
 
   componentExists: (name: string, lang: string) => invoke<boolean>("component_exists", { name, lang }),
   isUserAddedComponent: (id: number) => invoke<boolean>("is_user_added_component", { id }),
+  hasUserAddedComponents: () => invoke<boolean>("has_user_added_components"),
   insertComponent: (name: string, lang: string, props: [number, number, number, number]) =>
     invoke<number>("insert_component", { name, lang, props }),
   deleteComponent: (id: number) => invoke<void>("delete_component", { id }),
@@ -85,6 +82,7 @@ export const api = {
   saveLayout: (input: { side_panel_width: number; split_ratio: number }) =>
     invoke<void>("save_layout", { input }),
   saveScale: (scale: string) => invoke<void>("save_scale", { scale }),
+  saveLanguage: (language: string) => invoke<void>("save_language", { language }),
   saveAddons: (addons: AddonId[]) => invoke<void>("save_addons", { addons }),
   saveMaxCombinations: (maxCombinations: number) =>
     invoke<void>("save_max_combinations", { maxCombinations }),

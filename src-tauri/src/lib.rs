@@ -68,6 +68,7 @@ pub fn run() {
             commands::find_max_combinations,
             commands::component_exists,
             commands::is_user_added_component,
+            commands::has_user_added_components,
             commands::insert_component,
             commands::delete_component,
             commands::update_component_properties,
@@ -76,6 +77,7 @@ pub fn run() {
             commands::get_layout,
             commands::save_layout,
             commands::save_scale,
+            commands::save_language,
             commands::save_addons,
             commands::save_max_combinations,
         ])

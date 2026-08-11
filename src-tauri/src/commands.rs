@@ -136,6 +136,12 @@ pub fn is_user_added_component(state: State<AppState>, id: i64) -> Result<bool, 
 }
 
 #[tauri::command]
+pub fn has_user_added_components(state: State<AppState>) -> Result<bool, String> {
+    let conn = state.conn.lock().map_err(map_err)?;
+    db::has_user_added_components(&conn).map_err(map_err)
+}
+
+#[tauri::command]
 pub fn insert_component(
     state: State<AppState>,
     name: String,
@@ -236,6 +242,11 @@ pub fn save_layout(input: LayoutInput) {
 #[tauri::command]
 pub fn save_scale(scale: String) {
     layout::save_scale(&scale);
+}
+
+#[tauri::command]
+pub fn save_language(language: String) {
+    layout::save_language(&language);
 }
 
 #[tauri::command]
