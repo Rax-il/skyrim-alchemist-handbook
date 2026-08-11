@@ -15,6 +15,7 @@ import { api } from "../lib/api";
 import type { ComponentNameInfo, PropertyInfo } from "../lib/api";
 import { GOOD_QUALITY_SIZE, useAdaptiveImageSize } from "../lib/useAdaptiveImageSize";
 import { LANGUAGE_OPTIONS } from "../lib/languages";
+import { HintIcon } from "./HintIcon";
 
 interface Props {
   opened: boolean;
@@ -387,6 +388,7 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
             <Text size="xs" c="dimmed">
               (Только для текущего языка)
             </Text>
+            <HintIcon label="Корректировки описания ингредиента будут сохранены только для текущего языка" />
           </Group>
           <Textarea
             key={loadedName}
