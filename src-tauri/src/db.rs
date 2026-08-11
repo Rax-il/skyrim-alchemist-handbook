@@ -9,10 +9,10 @@ use std::path::Path;
 
 use crate::addons::Addon;
 use crate::creations::{
-    CREATION_DESCRIPTIONS, CREATION_IMAGES, CREATION_INGREDIENTS, CREATION_PROPERTIES,
+    CREATION_DESCRIPTIONS, CREATION_INGREDIENTS, CREATION_PROPERTIES,
     FISHING_INGREDIENTS, PLAGUE_INGREDIENTS, SAINTS_INGREDIENTS,
 };
-use crate::rare_curios::{RARE_CURIOS_DESCRIPTION, RARE_CURIOS_IMAGES, RARE_CURIOS_INGREDIENTS, RARE_CURIOS_PROPERTIES};
+use crate::rare_curios::{RARE_CURIOS_DESCRIPTION, RARE_CURIOS_INGREDIENTS, RARE_CURIOS_PROPERTIES};
 use crate::seed_data::{DAWNGUARD_INGREDIENTS, DRAGONBORN_INGREDIENTS, HEARTHFIRE_INGREDIENTS, INGREDIENTS, MEDIA, PROPERTIES};
 use crate::seed_translations::TRANSLATIONS;
 
@@ -34,7 +34,6 @@ pub fn ensure_db(path: &Path) -> rusqlite::Result<Connection> {
     migrate_rare_curios(&conn)?;
     migrate_creations(&conn)?;
     migrate_addon_ids(&conn)?;
-    migrate_images_to_blob(&conn)?;
     migrate_i18n(&conn)?;
     Ok(conn)
 }
@@ -49,7 +48,6 @@ fn init_db(conn: &Connection) -> rusqlite::Result<()> {
         CREATE TABLE components (
             id          INTEGER PRIMARY KEY,
             name        TEXT NOT NULL,
-            image_url   TEXT NOT NULL DEFAULT '',
             description TEXT NOT NULL DEFAULT ''
         );
         CREATE TABLE component_properties (
@@ -67,16 +65,13 @@ fn init_db(conn: &Connection) -> rusqlite::Result<()> {
         prop_id.insert(name, conn.last_insert_rowid());
     }
 
-    let media_map: HashMap<&str, (&str, &str)> = MEDIA
-        .iter()
-        .map(|(name, url, desc)| (*name, (*url, *desc)))
-        .collect();
+    let media_map: HashMap<&str, &str> = MEDIA.iter().map(|(name, desc)| (*name, *desc)).collect();
 
     for (name, props) in INGREDIENTS {
-        let (image_url, description) = media_map.get(name).copied().unwrap_or(("", ""));
+        let description = media_map.get(name).copied().unwrap_or("");
         conn.execute(
-            "INSERT INTO components (name, image_url, description) VALUES (?1, ?2, ?3)",
-            params![name, image_url, description],
+            "INSERT INTO components (name, description) VALUES (?1, ?2)",
+            params![name, description],
         )?;
         let component_id = conn.last_insert_rowid();
         for prop_name in props {
@@ -92,11 +87,12 @@ fn init_db(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// Добавляет колонки image_url/description, если их ещё нет, и подтягивает
-/// данные из MEDIA туда, где сейчас пусто (не затирая ручные правки).
-/// image_url здесь используется только как "откуда взять файл" для
-/// однократного переноса в БД (см. migrate_images_to_blob) — сама программа
-/// картинки по этому пути больше не читает.
+/// Добавляет колонку description, если её ещё нет, и подтягивает данные из
+/// MEDIA туда, где сейчас пусто (не затирая ручные правки). Также убирает
+/// legacy-колонку image_url, если она осталась в БД от версий, когда
+/// картинки читались из файлов на диске (папка images/) — с тех пор все
+/// картинки хранятся прямо в BLOB-колонке image (см. ниже), путь к файлу
+/// программе больше не нужен, а сама папка images/ давно не поставляется.
 fn migrate_media(conn: &Connection) -> rusqlite::Result<()> {
     let mut has_image_url = false;
     let mut has_description = false;
@@ -115,12 +111,6 @@ fn migrate_media(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
 
-    if !has_image_url {
-        conn.execute(
-            "ALTER TABLE components ADD COLUMN image_url TEXT NOT NULL DEFAULT ''",
-            [],
-        )?;
-    }
     if !has_description {
         conn.execute(
             "ALTER TABLE components ADD COLUMN description TEXT NOT NULL DEFAULT ''",
@@ -130,46 +120,17 @@ fn migrate_media(conn: &Connection) -> rusqlite::Result<()> {
     if !has_image_blob {
         conn.execute("ALTER TABLE components ADD COLUMN image BLOB", [])?;
     }
+    if has_image_url {
+        conn.execute("ALTER TABLE components DROP COLUMN image_url", [])?;
+    }
 
-    for (name, image_url, description) in MEDIA {
+    for (name, description) in MEDIA {
         conn.execute(
             "UPDATE components
-             SET image_url = CASE WHEN image_url = '' THEN ?1 ELSE image_url END,
-                 description = CASE WHEN description = '' THEN ?2 ELSE description END
-             WHERE name = ?3",
-            params![image_url, description, name],
+             SET description = CASE WHEN description = '' THEN ?1 ELSE description END
+             WHERE name = ?2",
+            params![description, name],
         )?;
-    }
-
-    Ok(())
-}
-
-/// Переносит картинки из файлов (путь в image_url — из поставляемой вместе
-/// со сборкой папки images/) прямо в БД, в колонку image (BLOB), — один раз
-/// для каждого компонента, у которого блоба ещё нет. После этого папка
-/// images/ программе больше не нужна: и старые данные, и всё, что добавит
-/// пользователь через "Редактировать базу" (там теперь выбор файла через
-/// системный диалог, см. editor.rs), хранится прямо внутри alchemist.db.
-/// Ошибка чтения отдельного файла (например, если папку images/ забыли
-/// скопировать) не прерывает всю миграцию — такой компонент просто
-/// остаётся без картинки, как и раньше.
-fn migrate_images_to_blob(conn: &Connection) -> rusqlite::Result<()> {
-    let mut targets: Vec<(i64, String)> = Vec::new();
-    {
-        let mut stmt = conn.prepare(
-            "SELECT id, image_url FROM components
-             WHERE (image IS NULL OR length(image) = 0) AND image_url != ''",
-        )?;
-        let mut rows = stmt.query([])?;
-        while let Some(row) = rows.next()? {
-            targets.push((row.get(0)?, row.get(1)?));
-        }
-    }
-
-    for (id, image_url) in targets {
-        if let Ok(bytes) = std::fs::read(&image_url) {
-            conn.execute("UPDATE components SET image = ?1 WHERE id = ?2", params![bytes, id])?;
-        }
     }
 
     Ok(())
@@ -328,16 +289,13 @@ fn migrate_rare_curios(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
 
-    let image_map: HashMap<&str, &str> = RARE_CURIOS_IMAGES.iter().copied().collect();
-
     for (name, props) in RARE_CURIOS_INGREDIENTS {
         if existing_names.contains(*name) {
             continue;
         }
-        let image_url = image_map.get(name).copied().unwrap_or("");
         conn.execute(
-            "INSERT INTO components (name, image_url, description) VALUES (?1, ?2, ?3)",
-            params![name, image_url, RARE_CURIOS_DESCRIPTION],
+            "INSERT INTO components (name, description) VALUES (?1, ?2)",
+            params![name, RARE_CURIOS_DESCRIPTION],
         )?;
         let component_id = conn.last_insert_rowid();
         for prop_name in props {
@@ -389,18 +347,16 @@ fn migrate_creations(conn: &Connection) -> rusqlite::Result<()> {
         }
     }
 
-    let image_map: HashMap<&str, &str> = CREATION_IMAGES.iter().copied().collect();
     let description_map: HashMap<&str, &str> = CREATION_DESCRIPTIONS.iter().copied().collect();
 
     for (name, props) in CREATION_INGREDIENTS {
         if existing_names.contains(*name) {
             continue;
         }
-        let image_url = image_map.get(name).copied().unwrap_or("");
         let description = description_map.get(name).copied().unwrap_or("");
         conn.execute(
-            "INSERT INTO components (name, image_url, description) VALUES (?1, ?2, ?3)",
-            params![name, image_url, description],
+            "INSERT INTO components (name, description) VALUES (?1, ?2)",
+            params![name, description],
         )?;
         let component_id = conn.last_insert_rowid();
         for prop_name in props {
@@ -1101,11 +1057,11 @@ mod rare_curios_tests {
 
     /// Используем временный ТОЛЬКО файл базы (по абсолютному пути) — саму
     /// рабочую директорию не трогаем. Раньше здесь также проверялся перенос
-    /// картинок из папки images/ в BLOB (полная цепочка миграции) — сейчас
-    /// эта миграция уже давно проверена и стабильна, а сама папка images/
-    /// не поставляется вместе с проектом (не нужна для работы приложения,
-    /// см. migrate_images_to_blob), поэтому тесты на неё больше не
-    /// полагаются — проверяют только структуру данных после миграции.
+    /// картинок из папки images/ в BLOB (отдельная миграция,
+    /// migrate_images_to_blob) — эта миграция и сама колонка image_url,
+    /// через которую она работала, с тех пор удалены целиком: все картинки
+    /// давно живут прямо в BLOB-колонке image, файлового пути программе
+    /// больше не нужно.
     fn temp_db_path(label: &str) -> std::path::PathBuf {
         std::env::temp_dir().join(format!("alch_db_test_{label}_{}.db", std::process::id()))
     }
@@ -1566,6 +1522,35 @@ mod rare_curios_tests {
             )
             .unwrap();
         assert_eq!(en_name, "Frenzy", "повторная миграция повредила перевод");
+
+        drop(conn2);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    /// Симулирует БД, унаследованную от версии до удаления image_url
+    /// (колонка + вся цепочка чтения картинок из файлов), и проверяет, что
+    /// migrate_media() безусловно её убирает при следующем запуске.
+    #[test]
+    fn migrate_media_drops_legacy_image_url_column() {
+        let db_path = temp_db_path("drop_image_url");
+        let _ = std::fs::remove_file(&db_path);
+        let conn = ensure_db(&db_path).unwrap();
+        conn.execute(
+            "ALTER TABLE components ADD COLUMN image_url TEXT NOT NULL DEFAULT ''",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+
+        let conn2 = ensure_db(&db_path).unwrap();
+        let cols: Vec<String> = {
+            let mut stmt = conn2.prepare("PRAGMA table_info(components)").unwrap();
+            stmt.query_map([], |r| r.get::<_, String>(1))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
+                .unwrap()
+        };
+        assert!(!cols.contains(&"image_url".to_string()), "image_url должна быть удалена: {cols:?}");
 
         drop(conn2);
         let _ = std::fs::remove_file(&db_path);
