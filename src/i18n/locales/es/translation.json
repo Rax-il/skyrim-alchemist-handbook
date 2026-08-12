@@ -101,5 +101,11 @@
     "networkSolana": "Red Solana",
     "networkArbitrum": "Red Arbitrum",
     "networkTron": "Red Tron"
+  },
+  "aboutModal": {
+    "versionLabel": "Versión {{version}}",
+    "authorLabel": "Autor: {{author}}",
+    "summary": "Una guía de ingredientes y combinaciones de alquimia de Skyrim: busca los efectos que necesitas y encuentra los ingredientes correspondientes según sus propiedades.",
+    "donateButton": "Donar al autor"
   }
 }

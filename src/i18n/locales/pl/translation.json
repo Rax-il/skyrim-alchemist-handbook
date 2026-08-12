@@ -105,5 +105,11 @@
     "networkSolana": "Sieć Solana",
     "networkArbitrum": "Sieć Arbitrum",
     "networkTron": "Sieć Tron"
+  },
+  "aboutModal": {
+    "versionLabel": "Wersja {{version}}",
+    "authorLabel": "Autor: {{author}}",
+    "summary": "Poradnik po składnikach i kombinacjach alchemicznych w Skyrim: wyszukuj potrzebne efekty i dobieraj składniki według właściwości.",
+    "donateButton": "Wesprzyj autora"
   }
 }

@@ -99,5 +99,11 @@
     "networkSolana": "Solanaネットワーク",
     "networkArbitrum": "Arbitrumネットワーク",
     "networkTron": "Tronネットワーク"
+  },
+  "aboutModal": {
+    "versionLabel": "バージョン {{version}}",
+    "authorLabel": "作者：{{author}}",
+    "summary": "Skyrimの錬金術素材と組み合わせのリファレンス：必要な効果を検索し、特性から対応する材料を見つけられます。",
+    "donateButton": "作者に寄付する"
   }
 }

@@ -101,5 +101,11 @@
     "networkSolana": "Rete Solana",
     "networkArbitrum": "Rete Arbitrum",
     "networkTron": "Rete Tron"
+  },
+  "aboutModal": {
+    "versionLabel": "Versione {{version}}",
+    "authorLabel": "Autore: {{author}}",
+    "summary": "Una guida agli ingredienti e alle combinazioni alchemiche di Skyrim: cerca gli effetti desiderati e trova gli ingredienti corrispondenti in base alle loro proprietà.",
+    "donateButton": "Fai una donazione all'autore"
   }
 }

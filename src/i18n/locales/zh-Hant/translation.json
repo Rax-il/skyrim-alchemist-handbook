@@ -99,5 +99,11 @@
     "networkSolana": "Solana 網路",
     "networkArbitrum": "Arbitrum 網路",
     "networkTron": "Tron 網路"
+  },
+  "aboutModal": {
+    "versionLabel": "版本 {{version}}",
+    "authorLabel": "作者：{{author}}",
+    "summary": "《無界天際》煉金材料與組合參考手冊：搜尋所需效果，並依屬性找出對應材料。",
+    "donateButton": "贊助作者"
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, CloseButton, Modal, Text } from "@mantine/core";
 import { getVersion } from "@tauri-apps/api/app";
+import { useTranslation } from "react-i18next";
 import portrait from "../assets/about-portrait.png";
 
 interface Props {
@@ -20,11 +21,9 @@ const BUTTON_AREA_HEIGHT = 30;
 const ABOUT_HEIGHT = TEXT_AREA_HEIGHT + BUTTON_AREA_HEIGHT;
 
 const AUTHOR = "Rax_il";
-const SUMMARY =
-  "Справочник ингредиентов и алхимических сочетаний Skyrim: поиск " +
-  "нужных эффектов и подбор компонентов по заданным свойствам.";
 
 export function AboutModal({ opened, onClose, onDonateClick }: Props) {
+  const { t } = useTranslation();
   // Версия приложения — берём динамически из tauri.conf.json через API,
   // чтобы не дублировать и не забывать поправить строку при бампе версии.
   const [version, setVersion] = useState<string | null>(null);
@@ -51,7 +50,7 @@ export function AboutModal({ opened, onClose, onDonateClick }: Props) {
       <div style={{ position: "relative", width: "100%", height: ABOUT_HEIGHT, display: "flex" }}>
         <CloseButton
           onClick={onClose}
-          aria-label="Закрыть"
+          aria-label={t("common.close")}
           style={{
             position: "absolute",
             top: 6,
@@ -89,14 +88,14 @@ export function AboutModal({ opened, onClose, onDonateClick }: Props) {
             }}
           >
             <Text fw={600} size="sm">
-              Справочник алхимика
+              {t("appTitle")}
             </Text>
             <Text size="xs" c="dimmed">
-              Версия {version ?? "…"}
+              {t("aboutModal.versionLabel", { version: version ?? "…" })}
             </Text>
-            <Text size="xs">Автор: {AUTHOR}</Text>
+            <Text size="xs">{t("aboutModal.authorLabel", { author: AUTHOR })}</Text>
             <Text size="xs" style={{ marginTop: 8 }}>
-              {SUMMARY}
+              {t("aboutModal.summary")}
             </Text>
           </div>
 
@@ -110,7 +109,7 @@ export function AboutModal({ opened, onClose, onDonateClick }: Props) {
             }}
           >
             <Button variant="light" size="compact-xs" onClick={onDonateClick}>
-              Автору на Эль
+              {t("aboutModal.donateButton")}
             </Button>
           </div>
         </div>

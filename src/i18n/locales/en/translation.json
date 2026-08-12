@@ -101,5 +101,11 @@
     "networkSolana": "Solana Network",
     "networkArbitrum": "Arbitrum Network",
     "networkTron": "Tron Network"
+  },
+  "aboutModal": {
+    "versionLabel": "Version {{version}}",
+    "authorLabel": "Author: {{author}}",
+    "summary": "A reference for Skyrim's alchemy ingredients and combinations: search for the effects you need and find matching ingredients by their properties.",
+    "donateButton": "Donate to the Author"
   }
 }

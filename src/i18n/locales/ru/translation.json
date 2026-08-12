@@ -105,5 +105,11 @@
     "networkSolana": "Сеть Solana",
     "networkArbitrum": "Сеть Arbitrum",
     "networkTron": "Сеть Tron"
+  },
+  "aboutModal": {
+    "versionLabel": "Версия {{version}}",
+    "authorLabel": "Автор: {{author}}",
+    "summary": "Справочник ингредиентов и алхимических сочетаний Skyrim: поиск нужных эффектов и подбор компонентов по заданным свойствам.",
+    "donateButton": "Автору на Эль"
   }
 }

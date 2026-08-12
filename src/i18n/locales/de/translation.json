@@ -101,5 +101,11 @@
     "networkSolana": "Solana-Netzwerk",
     "networkArbitrum": "Arbitrum-Netzwerk",
     "networkTron": "Tron-Netzwerk"
+  },
+  "aboutModal": {
+    "versionLabel": "Version {{version}}",
+    "authorLabel": "Autor: {{author}}",
+    "summary": "Ein Nachschlagewerk für Skyrims Alchemie-Zutaten und -Kombinationen: Suchen Sie nach den gewünschten Effekten und finden Sie passende Zutaten anhand ihrer Eigenschaften.",
+    "donateButton": "Dem Autor spenden"
   }
 }
