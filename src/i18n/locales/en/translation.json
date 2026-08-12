@@ -28,5 +28,32 @@
     "errorSelectProperty": "Select at least one property.",
     "errorSelectComponent": "Select an ingredient.",
     "noCombinationsFound": "No combinations found"
+  },
+  "editorModal": {
+    "title": "Edit Database",
+    "ingredientLabel": "Ingredient",
+    "newButton": "New",
+    "imageLabel": "Image",
+    "selectImageButton": "Select image file",
+    "removeImageButton": "Remove image from database",
+    "descriptionLabel": "Description",
+    "descriptionHint": "Description edits are saved only for the current language",
+    "deleteButton": "Delete",
+    "saveButton": "Save",
+    "newDialogTitle": "New Ingredient",
+    "nameLabel": "Name",
+    "newDialogLanguageHint": "The ingredient will only be visible with the selected language — {{language}}.",
+    "createButton": "Create",
+    "confirmBaseEditText": "Are you sure you want to edit the description of a base-game ingredient?",
+    "confirmDeleteTitle": "Delete Ingredient",
+    "confirmDeleteText": "Delete ingredient \"{{name}}\"? This action cannot be undone.",
+    "unsavedChangesTitle": "Unsaved Changes",
+    "unsavedChangesText": "Data is not saved. Continue and lose the changes?",
+    "errorNameRequired": "Enter the ingredient's name.",
+    "errorNameExists": "Ingredient \"{{name}}\" already exists.",
+    "errorSelectAllProperties": "Select a value in all 4 \"Property\" fields (field {{index}}).",
+    "errorDuplicateProperties": "The ingredient's properties must not repeat.",
+    "savedText": "Changes saved.",
+    "deletedText": "Ingredient deleted."
   }
 }

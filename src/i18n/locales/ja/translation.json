@@ -26,5 +26,32 @@
     "errorSelectProperty": "少なくとも1つの特性を選択してください。",
     "errorSelectComponent": "材料を選択してください。",
     "noCombinationsFound": "組み合わせが見つかりませんでした"
+  },
+  "editorModal": {
+    "title": "データベースを編集",
+    "ingredientLabel": "材料",
+    "newButton": "新規",
+    "imageLabel": "画像",
+    "selectImageButton": "画像ファイルを選択",
+    "removeImageButton": "データベースから画像を削除",
+    "descriptionLabel": "説明",
+    "descriptionHint": "説明の変更は現在の言語にのみ保存されます",
+    "deleteButton": "削除",
+    "saveButton": "保存",
+    "newDialogTitle": "新しい材料",
+    "nameLabel": "名前",
+    "newDialogLanguageHint": "この材料は選択した言語（{{language}}）でのみ表示されます。",
+    "createButton": "作成",
+    "confirmBaseEditText": "ベースゲームの材料の説明を編集してもよろしいですか?",
+    "confirmDeleteTitle": "材料の削除",
+    "confirmDeleteText": "材料「{{name}}」を削除しますか?この操作は元に戻せません。",
+    "unsavedChangesTitle": "未保存の変更",
+    "unsavedChangesText": "データが保存されていません。続行して変更を破棄しますか?",
+    "errorNameRequired": "材料の名前を入力してください。",
+    "errorNameExists": "材料「{{name}}」はすでに存在します。",
+    "errorSelectAllProperties": "4つの「特性」フィールドすべてに値を選択してください（フィールド{{index}}）。",
+    "errorDuplicateProperties": "材料の特性を重複させることはできません。",
+    "savedText": "変更を保存しました。",
+    "deletedText": "材料を削除しました。"
   }
 }

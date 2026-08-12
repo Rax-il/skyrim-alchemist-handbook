@@ -11,6 +11,7 @@ import {
   Textarea,
   TextInput,
 } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
 import type { ComponentNameInfo, PropertyInfo } from "../lib/api";
 import { GOOD_QUALITY_SIZE, useAdaptiveImageSize } from "../lib/useAdaptiveImageSize";
@@ -37,6 +38,7 @@ const PREVIEW_BOX = GOOD_QUALITY_SIZE;
 const DESCRIPTION_HEIGHT = 85;
 
 export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
+  const { t } = useTranslation();
   const [names, setNames] = useState<ComponentNameInfo[]>([]);
   const [allProperties, setAllProperties] = useState<PropertyInfo[]>([]);
 
@@ -188,11 +190,11 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
   async function confirmNewName() {
     const name = (newNameRef.current?.value ?? "").trim();
     if (!name) {
-      setInfo({ title: "Ошибка", text: "Введите название ингредиента." });
+      setInfo({ title: t("common.error"), text: t("editorModal.errorNameRequired") });
       return;
     }
     if (await api.componentExists(name, lang)) {
-      setInfo({ title: "Ошибка", text: `Ингредиент «${name}» уже существует.` });
+      setInfo({ title: t("common.error"), text: t("editorModal.errorNameExists", { name }) });
       return;
     }
     setNewDialogOpen(false);
@@ -218,11 +220,11 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
     for (let i = 0; i < 4; i++) {
       const p = propSelects[i];
       if (p === null) {
-        setInfo({ title: "Ошибка", text: `Выберите значение во всех 4 полях «Свойство» (поле ${i + 1}).` });
+        setInfo({ title: t("common.error"), text: t("editorModal.errorSelectAllProperties", { index: i + 1 }) });
         return;
       }
       if (seen.has(p)) {
-        setInfo({ title: "Ошибка", text: "Свойства компонента не должны повторяться." });
+        setInfo({ title: t("common.error"), text: t("editorModal.errorDuplicateProperties") });
         return;
       }
       seen.add(p);
@@ -264,9 +266,9 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
       originalRef.current = { props: propSelects, imageBase64 };
       setDirty(false);
       onChanged();
-      setInfo({ title: "Готово", text: "Изменения сохранены." });
+      setInfo({ title: t("common.done"), text: t("editorModal.savedText") });
     } catch (e) {
-      setInfo({ title: "Ошибка", text: String(e) });
+      setInfo({ title: t("common.error"), text: String(e) });
     }
   }
 
@@ -279,20 +281,20 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
       if (ns.length > 0) await loadComponent(ns[0].id, ns[0].name);
       else clearFields();
       onChanged();
-      setInfo({ title: "Готово", text: "Компонент удалён." });
+      setInfo({ title: t("common.done"), text: t("editorModal.deletedText") });
     } catch (e) {
-      setInfo({ title: "Ошибка", text: String(e) });
+      setInfo({ title: t("common.error"), text: String(e) });
     } finally {
       setConfirmDelete(false);
     }
   }
 
   return (
-    <Modal opened={opened} onClose={() => requestAction({ kind: "close" })} title="Редактировать базу" size="xl">
+    <Modal opened={opened} onClose={() => requestAction({ kind: "close" })} title={t("editorModal.title")} size="xl">
       <Stack gap="sm">
         <div>
           <Text size="sm" fw={700} mb={2}>
-            Ингредиент
+            {t("editorModal.ingredientLabel")}
           </Text>
           <Group wrap="nowrap" gap="xs" align="flex-start">
             {isNew ? (
@@ -314,7 +316,7 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
               />
             )}
             <Button variant="default" onClick={() => requestAction({ kind: "new" })}>
-              Новый
+              {t("editorModal.newButton")}
             </Button>
           </Group>
         </div>
@@ -323,8 +325,8 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
           {[0, 1, 2, 3].map((i) => (
             <Select
               key={i}
-              label={`Свойство ${i + 1}`}
-              placeholder="— не выбрано —"
+              label={t("common.propertyLabel", { index: i + 1 })}
+              placeholder={t("common.notSelected")}
               data={allProperties.map((p) => ({ value: String(p.id), label: p.name }))}
               value={propSelects[i] !== null ? String(propSelects[i]) : null}
               disabled={!editable}
@@ -343,7 +345,7 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
 
         <div>
           <Text size="sm" fw={700} mb={4}>
-            Изображение
+            {t("editorModal.imageLabel")}
           </Text>
           <Group align="center" wrap="nowrap">
             <div
@@ -361,15 +363,15 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
               {previewSrc ? (
                 <Image src={previewSrc} w={previewSize} h={previewSize} fit="contain" />
               ) : (
-                <Text c="dimmed">нет</Text>
+                <Text c="dimmed">{t("common.noImage")}</Text>
               )}
             </div>
             <Stack flex={1} gap={4}>
               <Button variant="light" onClick={pickImage}>
-                Выбрать файл с изображением
+                {t("editorModal.selectImageButton")}
               </Button>
               <Button variant="light" color="red" disabled={!imageBase64} onClick={clearImage}>
-                Удалить изображение из базы
+                {t("editorModal.removeImageButton")}
               </Button>
               {imageFileName && (
                 <Text size="xs" c="dimmed">
@@ -383,9 +385,9 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
         <div>
           <Group gap={6} align="baseline">
             <Text size="sm" fw={700}>
-              Описание
+              {t("editorModal.descriptionLabel")}
             </Text>
-            <HintIcon label="Корректировки описания ингредиента будут сохранены только для текущего языка" />
+            <HintIcon label={t("editorModal.descriptionHint")} />
           </Group>
           <Textarea
             key={loadedName}
@@ -407,47 +409,48 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
               disabled={!loadedName || isNew || !editable}
               onClick={() => setConfirmDelete(true)}
             >
-              Удалить
+              {t("editorModal.deleteButton")}
             </Button>
           </Group>
           <Group>
             <Button variant="default" onClick={() => requestAction({ kind: "close" })}>
-              Закрыть
+              {t("common.close")}
             </Button>
             <Button disabled={!dirty} onClick={handleSave}>
-              Сохранить
+              {t("editorModal.saveButton")}
             </Button>
           </Group>
         </Group>
       </Stack>
 
-      <Modal opened={newDialogOpen} onClose={() => setNewDialogOpen(false)} title="Новый ингредиент" size="sm">
+      <Modal opened={newDialogOpen} onClose={() => setNewDialogOpen(false)} title={t("editorModal.newDialogTitle")} size="sm">
         <TextInput
           key={newDialogGeneration}
-          label="Название"
+          label={t("editorModal.nameLabel")}
           ref={newNameRef}
           defaultValue=""
           data-autofocus
         />
         <Text size="xs" c="dimmed" mt={4}>
-          Ингредиент будет виден только при выбранном языке —{" "}
-          {LANGUAGE_OPTIONS.find((l) => l.value === lang)?.label ?? lang}.
+          {t("editorModal.newDialogLanguageHint", {
+            language: LANGUAGE_OPTIONS.find((l) => l.value === lang)?.label ?? lang,
+          })}
         </Text>
         <Group justify="flex-end" mt="md">
           <Button variant="default" onClick={() => setNewDialogOpen(false)}>
-            Отмена
+            {t("common.cancel")}
           </Button>
-          <Button onClick={confirmNewName}>Создать</Button>
+          <Button onClick={confirmNewName}>{t("editorModal.createButton")}</Button>
         </Group>
       </Modal>
 
-      <Modal opened={confirmBaseEdit} onClose={() => setConfirmBaseEdit(false)} title="Подтверждение" size="sm">
+      <Modal opened={confirmBaseEdit} onClose={() => setConfirmBaseEdit(false)} title={t("common.confirmTitle")} size="sm">
         <Text size="sm" mb="md">
-          Вы уверены, что хотите внести изменения в описание базового ингредиента?
+          {t("editorModal.confirmBaseEditText")}
         </Text>
         <Group justify="flex-end">
           <Button variant="default" onClick={() => setConfirmBaseEdit(false)}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={() => {
@@ -455,21 +458,21 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
               performSave();
             }}
           >
-            Продолжить
+            {t("common.continue")}
           </Button>
         </Group>
       </Modal>
 
-      <Modal opened={confirmDelete} onClose={() => setConfirmDelete(false)} title="Удаление компонента" size="sm">
+      <Modal opened={confirmDelete} onClose={() => setConfirmDelete(false)} title={t("editorModal.confirmDeleteTitle")} size="sm">
         <Text size="sm" mb="md">
-          Удалить компонент «{loadedName}»? Действие необратимо.
+          {t("editorModal.confirmDeleteText", { name: loadedName })}
         </Text>
         <Group justify="flex-end">
           <Button variant="default" onClick={() => setConfirmDelete(false)}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button color="red" onClick={handleDelete}>
-            Удалить
+            {t("editorModal.deleteButton")}
           </Button>
         </Group>
       </Modal>
@@ -477,15 +480,15 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
       <Modal
         opened={pendingAction !== null}
         onClose={() => setPendingAction(null)}
-        title="Несохранённые изменения"
+        title={t("editorModal.unsavedChangesTitle")}
         size="sm"
       >
         <Text size="sm" mb="md">
-          Данные не сохранены. Продолжить и потерять изменения?
+          {t("editorModal.unsavedChangesText")}
         </Text>
         <Group justify="flex-end">
           <Button variant="default" onClick={() => setPendingAction(null)}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             color="red"
@@ -495,7 +498,7 @@ export function EditorModal({ opened, onClose, onChanged, lang }: Props) {
               if (action) runAction(action);
             }}
           >
-            Продолжить
+            {t("common.continue")}
           </Button>
         </Group>
       </Modal>

@@ -26,5 +26,32 @@
     "errorSelectProperty": "請至少選擇一個屬性。",
     "errorSelectComponent": "請選擇材料。",
     "noCombinationsFound": "未找到組合"
+  },
+  "editorModal": {
+    "title": "編輯資料庫",
+    "ingredientLabel": "材料",
+    "newButton": "新增",
+    "imageLabel": "圖片",
+    "selectImageButton": "選擇圖片檔案",
+    "removeImageButton": "從資料庫刪除圖片",
+    "descriptionLabel": "說明",
+    "descriptionHint": "說明的修改僅會儲存於目前語言",
+    "deleteButton": "刪除",
+    "saveButton": "儲存",
+    "newDialogTitle": "新增材料",
+    "nameLabel": "名稱",
+    "newDialogLanguageHint": "此材料僅在所選語言（{{language}}）下可見。",
+    "createButton": "建立",
+    "confirmBaseEditText": "確定要編輯基礎遊戲材料的說明嗎?",
+    "confirmDeleteTitle": "刪除材料",
+    "confirmDeleteText": "要刪除材料「{{name}}」嗎?此操作無法復原。",
+    "unsavedChangesTitle": "未儲存的變更",
+    "unsavedChangesText": "資料尚未儲存。是否繼續並放棄變更?",
+    "errorNameRequired": "請輸入材料名稱。",
+    "errorNameExists": "材料「{{name}}」已存在。",
+    "errorSelectAllProperties": "請在全部 4 個「屬性」欄位中選擇數值（欄位 {{index}}）。",
+    "errorDuplicateProperties": "材料的屬性不可重複。",
+    "savedText": "變更已儲存。",
+    "deletedText": "材料已刪除。"
   }
 }

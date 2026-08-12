@@ -32,5 +32,32 @@
     "errorSelectProperty": "Wybierz co najmniej jedną właściwość.",
     "errorSelectComponent": "Wybierz składnik.",
     "noCombinationsFound": "Nie znaleziono kombinacji"
+  },
+  "editorModal": {
+    "title": "Edytuj bazę",
+    "ingredientLabel": "Składnik",
+    "newButton": "Nowy",
+    "imageLabel": "Obraz",
+    "selectImageButton": "Wybierz plik obrazu",
+    "removeImageButton": "Usuń obraz z bazy danych",
+    "descriptionLabel": "Opis",
+    "descriptionHint": "Zmiany w opisie są zapisywane tylko dla bieżącego języka",
+    "deleteButton": "Usuń",
+    "saveButton": "Zapisz",
+    "newDialogTitle": "Nowy składnik",
+    "nameLabel": "Nazwa",
+    "newDialogLanguageHint": "Składnik będzie widoczny tylko przy wybranym języku — {{language}}.",
+    "createButton": "Utwórz",
+    "confirmBaseEditText": "Czy na pewno chcesz zmienić opis podstawowego składnika?",
+    "confirmDeleteTitle": "Usuwanie składnika",
+    "confirmDeleteText": "Usunąć składnik „{{name}}”? Tej operacji nie można cofnąć.",
+    "unsavedChangesTitle": "Niezapisane zmiany",
+    "unsavedChangesText": "Dane nie zostały zapisane. Kontynuować i utracić zmiany?",
+    "errorNameRequired": "Wpisz nazwę składnika.",
+    "errorNameExists": "Składnik „{{name}}” już istnieje.",
+    "errorSelectAllProperties": "Wybierz wartość we wszystkich 4 polach „Właściwość” (pole {{index}}).",
+    "errorDuplicateProperties": "Właściwości składnika nie mogą się powtarzać.",
+    "savedText": "Zmiany zapisane.",
+    "deletedText": "Składnik usunięty."
   }
 }

@@ -28,5 +28,32 @@
     "errorSelectProperty": "Wählen Sie mindestens eine Eigenschaft aus.",
     "errorSelectComponent": "Wählen Sie eine Zutat aus.",
     "noCombinationsFound": "Keine Kombinationen gefunden"
+  },
+  "editorModal": {
+    "title": "Datenbank bearbeiten",
+    "ingredientLabel": "Zutat",
+    "newButton": "Neu",
+    "imageLabel": "Bild",
+    "selectImageButton": "Bilddatei auswählen",
+    "removeImageButton": "Bild aus der Datenbank entfernen",
+    "descriptionLabel": "Beschreibung",
+    "descriptionHint": "Änderungen an der Beschreibung werden nur für die aktuelle Sprache gespeichert",
+    "deleteButton": "Löschen",
+    "saveButton": "Speichern",
+    "newDialogTitle": "Neue Zutat",
+    "nameLabel": "Name",
+    "newDialogLanguageHint": "Die Zutat ist nur bei der ausgewählten Sprache sichtbar — {{language}}.",
+    "createButton": "Erstellen",
+    "confirmBaseEditText": "Möchten Sie die Beschreibung einer Basisspiel-Zutat wirklich bearbeiten?",
+    "confirmDeleteTitle": "Zutat löschen",
+    "confirmDeleteText": "Zutat „{{name}}“ löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    "unsavedChangesTitle": "Ungespeicherte Änderungen",
+    "unsavedChangesText": "Die Daten sind nicht gespeichert. Fortfahren und die Änderungen verlieren?",
+    "errorNameRequired": "Geben Sie den Namen der Zutat ein.",
+    "errorNameExists": "Die Zutat „{{name}}“ existiert bereits.",
+    "errorSelectAllProperties": "Wählen Sie in allen 4 Feldern „Eigenschaft“ einen Wert aus (Feld {{index}}).",
+    "errorDuplicateProperties": "Die Eigenschaften der Zutat dürfen sich nicht wiederholen.",
+    "savedText": "Änderungen gespeichert.",
+    "deletedText": "Zutat gelöscht."
   }
 }

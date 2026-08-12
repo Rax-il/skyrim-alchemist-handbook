@@ -32,5 +32,32 @@
     "errorSelectProperty": "Выберите хотя бы одно свойство.",
     "errorSelectComponent": "Выберите компонент.",
     "noCombinationsFound": "Сочетаний не найдено"
+  },
+  "editorModal": {
+    "title": "Редактировать базу",
+    "ingredientLabel": "Ингредиент",
+    "newButton": "Новый",
+    "imageLabel": "Изображение",
+    "selectImageButton": "Выбрать файл с изображением",
+    "removeImageButton": "Удалить изображение из базы",
+    "descriptionLabel": "Описание",
+    "descriptionHint": "Корректировки описания ингредиента будут сохранены только для текущего языка",
+    "deleteButton": "Удалить",
+    "saveButton": "Сохранить",
+    "newDialogTitle": "Новый ингредиент",
+    "nameLabel": "Название",
+    "newDialogLanguageHint": "Ингредиент будет виден только при выбранном языке — {{language}}.",
+    "createButton": "Создать",
+    "confirmBaseEditText": "Вы уверены, что хотите внести изменения в описание базового ингредиента?",
+    "confirmDeleteTitle": "Удаление компонента",
+    "confirmDeleteText": "Удалить компонент «{{name}}»? Действие необратимо.",
+    "unsavedChangesTitle": "Несохранённые изменения",
+    "unsavedChangesText": "Данные не сохранены. Продолжить и потерять изменения?",
+    "errorNameRequired": "Введите название ингредиента.",
+    "errorNameExists": "Ингредиент «{{name}}» уже существует.",
+    "errorSelectAllProperties": "Выберите значение во всех 4 полях «Свойство» (поле {{index}}).",
+    "errorDuplicateProperties": "Свойства компонента не должны повторяться.",
+    "savedText": "Изменения сохранены.",
+    "deletedText": "Компонент удалён."
   }
 }

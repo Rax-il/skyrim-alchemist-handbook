@@ -28,5 +28,32 @@
     "errorSelectProperty": "Seleziona almeno una proprietà.",
     "errorSelectComponent": "Seleziona un ingrediente.",
     "noCombinationsFound": "Nessuna combinazione trovata"
+  },
+  "editorModal": {
+    "title": "Modifica database",
+    "ingredientLabel": "Ingrediente",
+    "newButton": "Nuovo",
+    "imageLabel": "Immagine",
+    "selectImageButton": "Seleziona file immagine",
+    "removeImageButton": "Rimuovi l'immagine dal database",
+    "descriptionLabel": "Descrizione",
+    "descriptionHint": "Le modifiche alla descrizione vengono salvate solo per la lingua corrente",
+    "deleteButton": "Elimina",
+    "saveButton": "Salva",
+    "newDialogTitle": "Nuovo ingrediente",
+    "nameLabel": "Nome",
+    "newDialogLanguageHint": "L'ingrediente sarà visibile solo con la lingua selezionata — {{language}}.",
+    "createButton": "Crea",
+    "confirmBaseEditText": "Vuoi davvero modificare la descrizione di un ingrediente del gioco base?",
+    "confirmDeleteTitle": "Elimina ingrediente",
+    "confirmDeleteText": "Eliminare l'ingrediente «{{name}}»? L'azione è irreversibile.",
+    "unsavedChangesTitle": "Modifiche non salvate",
+    "unsavedChangesText": "I dati non sono stati salvati. Continuare e perdere le modifiche?",
+    "errorNameRequired": "Inserisci il nome dell'ingrediente.",
+    "errorNameExists": "L'ingrediente «{{name}}» esiste già.",
+    "errorSelectAllProperties": "Seleziona un valore in tutti e 4 i campi «Proprietà» (campo {{index}}).",
+    "errorDuplicateProperties": "Le proprietà dell'ingrediente non devono ripetersi.",
+    "savedText": "Modifiche salvate.",
+    "deletedText": "Ingrediente eliminato."
   }
 }
