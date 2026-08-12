@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Group, Menu, Modal, Stack, Text } from "@mantine/core";
+import { IconDoorExit, IconHelpCircle, IconPencil, IconSettings } from "@tabler/icons-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { api } from "./lib/api";
 import type { ComponentNameInfo, CombinationResult, FilterKind, PropertyInfo } from "./lib/api";
@@ -287,10 +288,16 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
             <button className="menu-bar-button">Файл</button>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item onClick={() => setEditorOpen(true)}>Редактировать базу</Menu.Item>
-            <Menu.Item onClick={() => setSettingsOpen(true)}>Настройки</Menu.Item>
+            <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => setEditorOpen(true)}>
+              Редактировать базу
+            </Menu.Item>
+            <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => setSettingsOpen(true)}>
+              Настройки
+            </Menu.Item>
             <Menu.Divider />
-            <Menu.Item onClick={handleExit}>Выход</Menu.Item>
+            <Menu.Item leftSection={<IconDoorExit size={16} />} onClick={handleExit}>
+              Выход
+            </Menu.Item>
           </Menu.Dropdown>
         </Menu>
         <Menu shadow="md" width={200}>
@@ -298,7 +305,9 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
             <button className="menu-bar-button">О программе</button>
           </Menu.Target>
           <Menu.Dropdown>
-            <Menu.Item onClick={() => setAboutOpen(true)}>О программе</Menu.Item>
+            <Menu.Item leftSection={<IconHelpCircle size={16} />} onClick={() => setAboutOpen(true)}>
+              О программе
+            </Menu.Item>
           </Menu.Dropdown>
         </Menu>
       </div>
