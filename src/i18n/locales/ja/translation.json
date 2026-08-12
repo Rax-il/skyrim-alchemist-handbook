@@ -77,5 +77,19 @@
     "saintsAndSeducers": "聖人と誘惑者",
     "plagueOfTheDead": "死者の疫病",
     "userAdded": "ユーザー追加"
+  },
+  "controlPanel": {
+    "searchTitle": "組み合わせを検索",
+    "filterTypeLabel": "特性の種類",
+    "filterAll": "すべて",
+    "filterBuff": "強化効果",
+    "filterPoison": "毒",
+    "findCombinationsButton": "組み合わせを検索",
+    "ingredientCountLabel": "材料（{{count}}）",
+    "showPropertiesButton": "特性を表示",
+    "pairsButton": "ペア組み合わせ",
+    "pairsHint": "最大数の効果を持つ2つの材料の組み合わせを表示します。（「すべて」/「強化効果」/「毒」フィルターに従います。）",
+    "triplesButton": "トリプル組み合わせ",
+    "triplesHint": "最大数の効果を持つ3つの材料の組み合わせを表示します。（「すべて」/「強化効果」/「毒」フィルターに従います。）"
   }
 }

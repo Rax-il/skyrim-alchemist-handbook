@@ -79,5 +79,19 @@
     "saintsAndSeducers": "Saints et Séducteurs",
     "plagueOfTheDead": "La Peste des morts",
     "userAdded": "Ajouté par l'utilisateur"
+  },
+  "controlPanel": {
+    "searchTitle": "Rechercher des combinaisons",
+    "filterTypeLabel": "Type de propriété",
+    "filterAll": "Toutes",
+    "filterBuff": "Améliorations",
+    "filterPoison": "Poisons",
+    "findCombinationsButton": "Trouver des combinaisons",
+    "ingredientCountLabel": "Ingrédient ({{count}})",
+    "showPropertiesButton": "Afficher les propriétés",
+    "pairsButton": "Combinaisons par paires",
+    "pairsHint": "Afficher les combinaisons de deux ingrédients donnant le plus grand nombre d'effets. (Respecte le filtre « Toutes »/« Améliorations »/« Poisons ».)",
+    "triplesButton": "Combinaisons par trois",
+    "triplesHint": "Afficher les combinaisons de trois ingrédients donnant le plus grand nombre d'effets. (Respecte le filtre « Toutes »/« Améliorations »/« Poisons ».)"
   }
 }

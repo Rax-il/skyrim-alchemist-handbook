@@ -77,5 +77,19 @@
     "saintsAndSeducers": "聖徒與誘惑者",
     "plagueOfTheDead": "死者瘟疫",
     "userAdded": "使用者新增"
+  },
+  "controlPanel": {
+    "searchTitle": "搜尋組合",
+    "filterTypeLabel": "屬性類型",
+    "filterAll": "全部",
+    "filterBuff": "強化效果",
+    "filterPoison": "毒藥",
+    "findCombinationsButton": "尋找組合",
+    "ingredientCountLabel": "材料（{{count}}）",
+    "showPropertiesButton": "顯示屬性",
+    "pairsButton": "配對組合",
+    "pairsHint": "顯示能產生最多效果數的兩種材料組合。（依循「全部」/「強化效果」/「毒藥」篩選器。）",
+    "triplesButton": "三重組合",
+    "triplesHint": "顯示能產生最多效果數的三種材料組合。（依循「全部」/「強化效果」/「毒藥」篩選器。）"
   }
 }

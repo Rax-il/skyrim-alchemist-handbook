@@ -79,5 +79,19 @@
     "saintsAndSeducers": "Santi e Seduttori",
     "plagueOfTheDead": "Peste dei morti",
     "userAdded": "Aggiunto dall'utente"
+  },
+  "controlPanel": {
+    "searchTitle": "Cerca combinazioni",
+    "filterTypeLabel": "Tipo di proprietà",
+    "filterAll": "Tutte",
+    "filterBuff": "Miglioramenti",
+    "filterPoison": "Veleni",
+    "findCombinationsButton": "Trova combinazioni",
+    "ingredientCountLabel": "Ingrediente ({{count}})",
+    "showPropertiesButton": "Mostra proprietà",
+    "pairsButton": "Combinazioni in coppia",
+    "pairsHint": "Mostra le combinazioni di due ingredienti che danno il numero massimo di effetti. (Rispetta il filtro «Tutte»/«Miglioramenti»/«Veleni».)",
+    "triplesButton": "Combinazioni in tripletta",
+    "triplesHint": "Mostra le combinazioni di tre ingredienti che danno il numero massimo di effetti. (Rispetta il filtro «Tutte»/«Miglioramenti»/«Veleni».)"
   }
 }

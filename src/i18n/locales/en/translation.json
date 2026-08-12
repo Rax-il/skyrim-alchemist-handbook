@@ -79,5 +79,19 @@
     "saintsAndSeducers": "Saints & Seducers",
     "plagueOfTheDead": "Plague of the Dead",
     "userAdded": "User-added"
+  },
+  "controlPanel": {
+    "searchTitle": "Search Combinations",
+    "filterTypeLabel": "Property Type",
+    "filterAll": "All",
+    "filterBuff": "Buffs",
+    "filterPoison": "Poisons",
+    "findCombinationsButton": "Find Combinations",
+    "ingredientCountLabel": "Ingredient ({{count}})",
+    "showPropertiesButton": "Show Properties",
+    "pairsButton": "Pair Combinations",
+    "pairsHint": "Show combinations of two ingredients that give the maximum number of effects. (Respects the \"All\"/\"Buffs\"/\"Poisons\" filter.)",
+    "triplesButton": "Triple Combinations",
+    "triplesHint": "Show combinations of three ingredients that give the maximum number of effects. (Respects the \"All\"/\"Buffs\"/\"Poisons\" filter.)"
   }
 }

@@ -1,4 +1,5 @@
 import { Button, Divider, Radio, Select, Stack, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import type { ComponentNameInfo, FilterKind, PropertyInfo } from "../lib/api";
 import { HintIcon } from "./HintIcon";
 
@@ -19,8 +20,6 @@ interface Props {
   onFindMaxCombinations: () => void;
 }
 
-const EMPTY_OPTION = "— не выбрано —";
-
 export function ControlPanel({
   properties,
   selects,
@@ -35,6 +34,7 @@ export function ControlPanel({
   onFindPairs,
   onFindMaxCombinations,
 }: Props) {
+  const { t } = useTranslation();
   const propertyOptions = properties.map((p) => ({ value: String(p.id), label: p.name }));
   const componentOptions = componentNames.map((c) => ({ value: String(c.id), label: c.name }));
 
@@ -47,14 +47,14 @@ export function ControlPanel({
   return (
     <Stack gap={4} p="sm">
       <Text size="sm" fw={700}>
-        Поиск сочетаний
+        {t("controlPanel.searchTitle")}
       </Text>
 
       {[0, 1, 2, 3].map((i) => (
         <Select
           key={i}
-          label={`Свойство ${i + 1}`}
-          placeholder={EMPTY_OPTION}
+          label={t("common.propertyLabel", { index: i + 1 })}
+          placeholder={t("common.notSelected")}
           data={propertyOptions}
           value={selects[i] !== null ? String(selects[i]) : null}
           onChange={(v) => setSelect(i, v)}
@@ -67,27 +67,27 @@ export function ControlPanel({
       <Radio.Group
         value={filter}
         onChange={(v) => onFilterChange(v as FilterKind)}
-        label="Тип свойств"
+        label={t("controlPanel.filterTypeLabel")}
         mt={4}
       >
         <Stack gap={4} mt={4}>
-          <Radio value="" label="Все" />
-          <Radio value="Улучшение" label="Улучшения" />
-          <Radio value="Яд" label="Яды" />
+          <Radio value="" label={t("controlPanel.filterAll")} />
+          <Radio value="Улучшение" label={t("controlPanel.filterBuff")} />
+          <Radio value="Яд" label={t("controlPanel.filterPoison")} />
         </Stack>
       </Radio.Group>
 
       <Button variant="light" mt="xs" onClick={onFindCombinations}>
-        Найти сочетания
+        {t("controlPanel.findCombinationsButton")}
       </Button>
 
       <Divider my="sm" />
 
       <Text size="sm" fw={700}>
-        Ингредиент ({componentNames.length})
+        {t("controlPanel.ingredientCountLabel", { count: componentNames.length })}
       </Text>
       <Select
-        placeholder={EMPTY_OPTION}
+        placeholder={t("common.notSelected")}
         data={componentOptions}
         value={componentSelect !== null ? String(componentSelect) : null}
         onChange={(v) => onComponentSelectChange(v !== null ? Number(v) : null)}
@@ -96,7 +96,7 @@ export function ControlPanel({
         comboboxProps={{ withinPortal: true }}
       />
       <Button variant="light" onClick={onShowProperties}>
-        Показать свойства
+        {t("controlPanel.showPropertiesButton")}
       </Button>
 
       <Divider my="sm" />
@@ -104,26 +104,16 @@ export function ControlPanel({
       <Button
         variant="light"
         onClick={onFindPairs}
-        rightSection={
-          <HintIcon
-            label="Вывести сочетания двух ингредиентов, дающих максимальное количество эффектов. (Учитывает переключатель «Все»/«Улучшения»/«Яды».)"
-            inheritColor
-          />
-        }
+        rightSection={<HintIcon label={t("controlPanel.pairsHint")} inheritColor />}
       >
-        Парные сочетания
+        {t("controlPanel.pairsButton")}
       </Button>
       <Button
         variant="light"
         onClick={onFindMaxCombinations}
-        rightSection={
-          <HintIcon
-            label="Вывести сочетания трёх ингредиентов, дающих максимальное количество эффектов. (Учитывает переключатель «Все»/«Улучшения»/«Яды».)"
-            inheritColor
-          />
-        }
+        rightSection={<HintIcon label={t("controlPanel.triplesHint")} inheritColor />}
       >
-        Тройные сочетания
+        {t("controlPanel.triplesButton")}
       </Button>
     </Stack>
   );

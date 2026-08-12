@@ -79,5 +79,19 @@
     "saintsAndSeducers": "Santos y Seductores",
     "plagueOfTheDead": "Peste de los muertos",
     "userAdded": "Añadido por el usuario"
+  },
+  "controlPanel": {
+    "searchTitle": "Buscar combinaciones",
+    "filterTypeLabel": "Tipo de propiedad",
+    "filterAll": "Todas",
+    "filterBuff": "Mejoras",
+    "filterPoison": "Venenos",
+    "findCombinationsButton": "Buscar combinaciones",
+    "ingredientCountLabel": "Ingrediente ({{count}})",
+    "showPropertiesButton": "Mostrar propiedades",
+    "pairsButton": "Combinaciones por pares",
+    "pairsHint": "Muestra combinaciones de dos ingredientes que dan el máximo número de efectos. (Respeta el filtro «Todas»/«Mejoras»/«Venenos».)",
+    "triplesButton": "Combinaciones por tríos",
+    "triplesHint": "Muestra combinaciones de tres ingredientes que dan el máximo número de efectos. (Respeta el filtro «Todas»/«Mejoras»/«Venenos».)"
   }
 }

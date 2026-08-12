@@ -83,5 +83,19 @@
     "saintsAndSeducers": "Święci i Uwodziciele",
     "plagueOfTheDead": "Zaraza umarłych",
     "userAdded": "Dodane przez użytkownika"
+  },
+  "controlPanel": {
+    "searchTitle": "Szukaj kombinacji",
+    "filterTypeLabel": "Typ właściwości",
+    "filterAll": "Wszystkie",
+    "filterBuff": "Ulepszenia",
+    "filterPoison": "Trucizny",
+    "findCombinationsButton": "Znajdź kombinacje",
+    "ingredientCountLabel": "Składnik ({{count}})",
+    "showPropertiesButton": "Pokaż właściwości",
+    "pairsButton": "Kombinacje par",
+    "pairsHint": "Wyświetla kombinacje dwóch składników dające maksymalną liczbę efektów. (Uwzględnia filtr „Wszystkie”/„Ulepszenia”/„Trucizny”.)",
+    "triplesButton": "Kombinacje trójek",
+    "triplesHint": "Wyświetla kombinacje trzech składników dające maksymalną liczbę efektów. (Uwzględnia filtr „Wszystkie”/„Ulepszenia”/„Trucizny”.)"
   }
 }

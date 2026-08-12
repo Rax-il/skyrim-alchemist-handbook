@@ -79,5 +79,19 @@
     "saintsAndSeducers": "Heilige und Verführer",
     "plagueOfTheDead": "Seuche der Toten",
     "userAdded": "Vom Benutzer hinzugefügt"
+  },
+  "controlPanel": {
+    "searchTitle": "Kombinationen suchen",
+    "filterTypeLabel": "Eigenschaftstyp",
+    "filterAll": "Alle",
+    "filterBuff": "Verbesserungen",
+    "filterPoison": "Gifte",
+    "findCombinationsButton": "Kombinationen finden",
+    "ingredientCountLabel": "Zutat ({{count}})",
+    "showPropertiesButton": "Eigenschaften anzeigen",
+    "pairsButton": "Paar-Kombinationen",
+    "pairsHint": "Zeigt Kombinationen aus zwei Zutaten, die die maximale Anzahl an Effekten ergeben. (Berücksichtigt den Filter „Alle“/„Verbesserungen“/„Gifte“.)",
+    "triplesButton": "Dreier-Kombinationen",
+    "triplesHint": "Zeigt Kombinationen aus drei Zutaten, die die maximale Anzahl an Effekten ergeben. (Berücksichtigt den Filter „Alle“/„Verbesserungen“/„Gifte“.)"
   }
 }
