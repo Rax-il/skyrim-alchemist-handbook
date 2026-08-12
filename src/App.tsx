@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Group, Menu, Modal, Stack, Text } from "@mantine/core";
 import { IconDoorExit, IconHelpCircle, IconPencil, IconSettings } from "@tabler/icons-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import i18n from "./i18n";
 import { api } from "./lib/api";
 import type { ComponentNameInfo, CombinationResult, FilterKind, PropertyInfo } from "./lib/api";
 import { useDragHandle } from "./lib/useDrag";
@@ -95,6 +96,14 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       api.saveLayout({ side_panel_width: sidePanelWidth, split_ratio: splitRatio });
     }, 400);
   }, [sidePanelWidth, splitRatio]);
+
+  // --- Синхронизация языка интерфейса с i18next + заголовок окна (Tauri
+  // window title, не React DOM — не переводится через JSX). ---
+  useEffect(() => {
+    i18n.changeLanguage(language).then(() => {
+      getCurrentWindow().setTitle(i18n.t("appTitle"));
+    });
+  }, [language]);
 
   // --- Список свойств и список ингредиентов, ограниченный включёнными
   // дополнениями и текущим языком. Срабатывает при первой загрузке (с
