@@ -11,5 +11,22 @@
     "notSelected": "— nicht ausgewählt —",
     "noImage": "Kein Bild",
     "propertyLabel": "Eigenschaft {{index}}"
+  },
+  "menu": {
+    "file": "Datei",
+    "editDatabase": "Datenbank bearbeiten",
+    "settings": "Einstellungen",
+    "exit": "Beenden",
+    "about": "Über"
+  },
+  "app": {
+    "resultsFound_one": "{{count}} Kombination gefunden",
+    "resultsFound_other": "{{count}} Kombinationen gefunden",
+    "resultsDisplayed_one": "{{count}} Kombination angezeigt",
+    "resultsDisplayed_other": "{{count}} Kombinationen angezeigt",
+    "slowOperationConfirm": "Dieser Vorgang kann einige Zeit dauern. Fortfahren?",
+    "errorSelectProperty": "Wählen Sie mindestens eine Eigenschaft aus.",
+    "errorSelectComponent": "Wählen Sie eine Zutat aus.",
+    "noCombinationsFound": "Keine Kombinationen gefunden"
   }
 }

@@ -11,5 +11,26 @@
     "notSelected": "— не выбрано —",
     "noImage": "Нет изображения",
     "propertyLabel": "Свойство {{index}}"
+  },
+  "menu": {
+    "file": "Файл",
+    "editDatabase": "Редактировать базу",
+    "settings": "Настройки",
+    "exit": "Выход",
+    "about": "О программе"
+  },
+  "app": {
+    "resultsFound_one": "Найдено {{count}} комбинация",
+    "resultsFound_few": "Найдено {{count}} комбинации",
+    "resultsFound_many": "Найдено {{count}} комбинаций",
+    "resultsFound_other": "Найдено {{count}} комбинации",
+    "resultsDisplayed_one": "Отображено {{count}} комбинация",
+    "resultsDisplayed_few": "Отображено {{count}} комбинации",
+    "resultsDisplayed_many": "Отображено {{count}} комбинаций",
+    "resultsDisplayed_other": "Отображено {{count}} комбинации",
+    "slowOperationConfirm": "Данная операция может занять некоторое время. Продолжать?",
+    "errorSelectProperty": "Выберите хотя бы одно свойство.",
+    "errorSelectComponent": "Выберите компонент.",
+    "noCombinationsFound": "Сочетаний не найдено"
   }
 }

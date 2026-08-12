@@ -11,5 +11,22 @@
     "notSelected": "— not selected —",
     "noImage": "No image",
     "propertyLabel": "Property {{index}}"
+  },
+  "menu": {
+    "file": "File",
+    "editDatabase": "Edit Database",
+    "settings": "Settings",
+    "exit": "Exit",
+    "about": "About"
+  },
+  "app": {
+    "resultsFound_one": "Found {{count}} combination",
+    "resultsFound_other": "Found {{count}} combinations",
+    "resultsDisplayed_one": "Displaying {{count}} combination",
+    "resultsDisplayed_other": "Displaying {{count}} combinations",
+    "slowOperationConfirm": "This operation may take some time. Continue?",
+    "errorSelectProperty": "Select at least one property.",
+    "errorSelectComponent": "Select an ingredient.",
+    "noCombinationsFound": "No combinations found"
   }
 }

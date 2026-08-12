@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Group, Menu, Modal, Stack, Text } from "@mantine/core";
 import { IconDoorExit, IconHelpCircle, IconPencil, IconSettings } from "@tabler/icons-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useTranslation } from "react-i18next";
 import i18n from "./i18n";
 import { api } from "./lib/api";
 import type { ComponentNameInfo, CombinationResult, FilterKind, PropertyInfo } from "./lib/api";
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }: Props) {
+  const { t } = useTranslation();
   const [properties, setProperties] = useState<PropertyInfo[]>([]);
   const [componentNames, setComponentNames] = useState<ComponentNameInfo[]>([]);
 
@@ -44,7 +46,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   const [componentSelect, setComponentSelect] = useState<number | null>(null);
 
   const [results, setResults] = useState<string[]>([]);
-  const [resultsHeader, setResultsHeader] = useState("Найдено 0 комбинаций");
+  const [resultsHeader, setResultsHeader] = useState(() => t("app.resultsFound", { count: 0 }));
 
   const [topMode, setTopMode] = useState<TopMode>({ kind: "empty" });
   const [bottomMode, setBottomMode] = useState<BottomMode>({ kind: "list" });
@@ -125,7 +127,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
     setTopMode({ kind: "empty" });
     setBottomMode({ kind: "list" });
     setResults([]);
-    setResultsHeader("Найдено 0 комбинаций");
+    setResultsHeader(t("app.resultsFound", { count: 0 }));
   }, [enabledAddons, language]);
 
   function refreshLists() {
@@ -146,7 +148,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   // визуальной индикации процесса толку не было — только это предупреждение.
   function confirmThenRun(action: () => Promise<void>) {
     setConfirm({
-      text: "Данная операция может занять некоторое время. Продолжать?",
+      text: t("app.slowOperationConfirm"),
       onConfirm: () => {
         action();
       },
@@ -155,7 +157,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
 
   function setPlainResults(items: string[], emptyMessage: string) {
     setBottomMode({ kind: "list" });
-    setResultsHeader(`Найдено ${items.length} комбинаций`);
+    setResultsHeader(t("app.resultsFound", { count: items.length }));
     setResults(items.length === 0 ? [emptyMessage] : items);
   }
 
@@ -169,7 +171,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   function setBlockResults(lines: string[], emptyMessage: string) {
     const displayedCount = lines.length === 0 ? 0 : lines.filter((l) => l === "").length + 1;
     setBottomMode({ kind: "list" });
-    setResultsHeader(`Отображено ${displayedCount} комбинаций`);
+    setResultsHeader(t("app.resultsDisplayed", { count: displayedCount }));
     setResults(lines.length === 0 ? [emptyMessage] : lines);
   }
 
@@ -177,13 +179,13 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
     const filtered = lastCombosRef.current
       .filter((c) => c.components.every((id) => enabled[id] ?? false))
       .map((c) => c.line);
-    setPlainResults(filtered, "Сочетаний не найдено");
+    setPlainResults(filtered, t("app.noCombinationsFound"));
   }
 
   async function handleFindCombinations() {
     const chosen = selects.filter((s): s is number => s !== null);
     if (chosen.length === 0) {
-      info_("Внимание", "Выберите хотя бы одно свойство.");
+      info_(t("common.attention"), t("app.errorSelectProperty"));
       return;
     }
     try {
@@ -205,13 +207,13 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       setTopMode({ kind: "checklist", items });
       applyComponentFilter(enabled);
     } catch (e) {
-      info_("Ошибка", String(e));
+      info_(t("common.error"), String(e));
     }
   }
 
   async function handleShowProperties() {
     if (componentSelect === null) {
-      info_("Внимание", "Выберите компонент.");
+      info_(t("common.attention"), t("app.errorSelectComponent"));
       return;
     }
     try {
@@ -230,7 +232,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
         imageDataUrl: media.image_data_url,
       });
     } catch (e) {
-      info_("Ошибка", String(e));
+      info_(t("common.error"), String(e));
     }
   }
 
@@ -240,9 +242,9 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       lastCombosRef.current = [];
       setEnabledComponents({});
       setTopMode({ kind: "checklist", items: [] });
-      setBlockResults(found, "Сочетаний не найдено");
+      setBlockResults(found, t("app.noCombinationsFound"));
     } catch (e) {
-      info_("Ошибка", String(e));
+      info_(t("common.error"), String(e));
     }
   }
 
@@ -252,9 +254,9 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       lastCombosRef.current = [];
       setEnabledComponents({});
       setTopMode({ kind: "checklist", items: [] });
-      setBlockResults(found, "Сочетаний не найдено");
+      setBlockResults(found, t("app.noCombinationsFound"));
     } catch (e) {
-      info_("Ошибка", String(e));
+      info_(t("common.error"), String(e));
     }
   }
 
@@ -294,28 +296,28 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       >
         <Menu shadow="md" width={200}>
           <Menu.Target>
-            <button className="menu-bar-button">Файл</button>
+            <button className="menu-bar-button">{t("menu.file")}</button>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item leftSection={<IconPencil size={16} />} onClick={() => setEditorOpen(true)}>
-              Редактировать базу
+              {t("menu.editDatabase")}
             </Menu.Item>
             <Menu.Item leftSection={<IconSettings size={16} />} onClick={() => setSettingsOpen(true)}>
-              Настройки
+              {t("menu.settings")}
             </Menu.Item>
             <Menu.Divider />
             <Menu.Item leftSection={<IconDoorExit size={16} />} onClick={handleExit}>
-              Выход
+              {t("menu.exit")}
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
         <Menu shadow="md" width={200}>
           <Menu.Target>
-            <button className="menu-bar-button">О программе</button>
+            <button className="menu-bar-button">{t("menu.about")}</button>
           </Menu.Target>
           <Menu.Dropdown>
             <Menu.Item leftSection={<IconHelpCircle size={16} />} onClick={() => setAboutOpen(true)}>
-              О программе
+              {t("menu.about")}
             </Menu.Item>
           </Menu.Dropdown>
         </Menu>
@@ -436,12 +438,12 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
         <Text size="sm">{info?.text}</Text>
       </Modal>
 
-      <Modal opened={confirm !== null} onClose={() => setConfirm(null)} title="Подтверждение" size="sm">
+      <Modal opened={confirm !== null} onClose={() => setConfirm(null)} title={t("common.confirmTitle")} size="sm">
         <Stack gap="md">
           <Text size="sm">{confirm?.text}</Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="default" onClick={() => setConfirm(null)}>
-              Отмена
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={() => {
@@ -449,7 +451,7 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
                 setConfirm(null);
               }}
             >
-              Продолжить
+              {t("common.continue")}
             </Button>
           </Group>
         </Stack>

@@ -11,5 +11,20 @@
     "notSelected": "— 未選擇 —",
     "noImage": "無圖片",
     "propertyLabel": "屬性{{index}}"
+  },
+  "menu": {
+    "file": "檔案",
+    "editDatabase": "編輯資料庫",
+    "settings": "設定",
+    "exit": "結束",
+    "about": "關於"
+  },
+  "app": {
+    "resultsFound_other": "找到 {{count}} 個組合",
+    "resultsDisplayed_other": "顯示 {{count}} 個組合",
+    "slowOperationConfirm": "此操作可能需要一些時間。是否繼續?",
+    "errorSelectProperty": "請至少選擇一個屬性。",
+    "errorSelectComponent": "請選擇材料。",
+    "noCombinationsFound": "未找到組合"
   }
 }

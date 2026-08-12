@@ -11,5 +11,22 @@
     "notSelected": "— non sélectionné —",
     "noImage": "Aucune image",
     "propertyLabel": "Propriété {{index}}"
+  },
+  "menu": {
+    "file": "Fichier",
+    "editDatabase": "Modifier la base",
+    "settings": "Paramètres",
+    "exit": "Quitter",
+    "about": "À propos"
+  },
+  "app": {
+    "resultsFound_one": "{{count}} combinaison trouvée",
+    "resultsFound_other": "{{count}} combinaisons trouvées",
+    "resultsDisplayed_one": "{{count}} combinaison affichée",
+    "resultsDisplayed_other": "{{count}} combinaisons affichées",
+    "slowOperationConfirm": "Cette opération peut prendre un certain temps. Continuer ?",
+    "errorSelectProperty": "Sélectionnez au moins une propriété.",
+    "errorSelectComponent": "Sélectionnez un ingrédient.",
+    "noCombinationsFound": "Aucune combinaison trouvée"
   }
 }

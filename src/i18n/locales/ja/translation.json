@@ -11,5 +11,20 @@
     "notSelected": "— 未選択 —",
     "noImage": "画像なし",
     "propertyLabel": "特性{{index}}"
+  },
+  "menu": {
+    "file": "ファイル",
+    "editDatabase": "データベースを編集",
+    "settings": "設定",
+    "exit": "終了",
+    "about": "このアプリについて"
+  },
+  "app": {
+    "resultsFound_other": "{{count}} 件の組み合わせが見つかりました",
+    "resultsDisplayed_other": "{{count}} 件の組み合わせを表示中",
+    "slowOperationConfirm": "この操作には時間がかかる場合があります。続行しますか?",
+    "errorSelectProperty": "少なくとも1つの特性を選択してください。",
+    "errorSelectComponent": "材料を選択してください。",
+    "noCombinationsFound": "組み合わせが見つかりませんでした"
   }
 }

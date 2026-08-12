@@ -11,5 +11,26 @@
     "notSelected": "— nie wybrano —",
     "noImage": "Brak obrazu",
     "propertyLabel": "Właściwość {{index}}"
+  },
+  "menu": {
+    "file": "Plik",
+    "editDatabase": "Edytuj bazę",
+    "settings": "Ustawienia",
+    "exit": "Wyjście",
+    "about": "O programie"
+  },
+  "app": {
+    "resultsFound_one": "Znaleziono {{count}} kombinację",
+    "resultsFound_few": "Znaleziono {{count}} kombinacje",
+    "resultsFound_many": "Znaleziono {{count}} kombinacji",
+    "resultsFound_other": "Znaleziono {{count}} kombinacji",
+    "resultsDisplayed_one": "Wyświetlono {{count}} kombinację",
+    "resultsDisplayed_few": "Wyświetlono {{count}} kombinacje",
+    "resultsDisplayed_many": "Wyświetlono {{count}} kombinacji",
+    "resultsDisplayed_other": "Wyświetlono {{count}} kombinacji",
+    "slowOperationConfirm": "Ta operacja może zająć trochę czasu. Kontynuować?",
+    "errorSelectProperty": "Wybierz co najmniej jedną właściwość.",
+    "errorSelectComponent": "Wybierz składnik.",
+    "noCombinationsFound": "Nie znaleziono kombinacji"
   }
 }
