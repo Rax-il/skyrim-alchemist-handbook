@@ -45,6 +45,7 @@ export interface Layout {
   enabled_addons: AddonId[];
   max_combinations: number;
   language: string;
+  settings_shown: boolean;
 }
 
 export const api = {
@@ -83,6 +84,7 @@ export const api = {
     invoke<void>("save_layout", { input }),
   saveScale: (scale: string) => invoke<void>("save_scale", { scale }),
   saveLanguage: (language: string) => invoke<void>("save_language", { language }),
+  saveSettingsShown: () => invoke<void>("save_settings_shown"),
   saveAddons: (addons: AddonId[]) => invoke<void>("save_addons", { addons }),
   saveMaxCombinations: (maxCombinations: number) =>
     invoke<void>("save_max_combinations", { maxCombinations }),

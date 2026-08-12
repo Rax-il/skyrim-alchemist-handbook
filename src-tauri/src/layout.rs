@@ -34,6 +34,12 @@ pub struct Layout {
     /// CURRENT_LANG на фронтенде, теперь настоящий persisted state.
     #[serde(default = "default_language")]
     pub language: String,
+    /// true, если окно "Настройки" уже показывалось пользователю хотя бы
+    /// раз — на новой установке (файла настроек ещё нет, отсюда serde
+    /// default = false) окно открывается автоматически при первом запуске,
+    /// чтобы пользователь сразу увидел выбор языка, а не искал его сам.
+    #[serde(default)]
+    pub settings_shown: bool,
 }
 
 fn default_scale() -> String {
@@ -64,6 +70,7 @@ impl Default for Layout {
             enabled_addons: default_addons(),
             max_combinations: default_max_combinations(),
             language: default_language(),
+            settings_shown: false,
         }
     }
 }
@@ -91,6 +98,7 @@ pub fn load() -> Layout {
         enabled_addons,
         max_combinations: if l.max_combinations >= 1 { l.max_combinations } else { default.max_combinations },
         language: if LANGUAGE_OPTIONS.contains(&l.language.as_str()) { l.language } else { default.language },
+        settings_shown: l.settings_shown,
     }
 }
 
@@ -140,5 +148,14 @@ pub fn save_scale(scale: &str) {
 pub fn save_language(language: &str) {
     let mut current = load();
     current.language = language.to_string();
+    save(&current);
+}
+
+/// Отмечает, что окно "Настройки" уже было показано (см. поле
+/// settings_shown) — не трогая остальную раскладку, по той же причине, что
+/// и save_scale/save_addons.
+pub fn save_settings_shown() {
+    let mut current = load();
+    current.settings_shown = true;
     save(&current);
 }

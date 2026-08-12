@@ -79,6 +79,7 @@ pub fn run() {
             commands::save_layout,
             commands::save_scale,
             commands::save_language,
+            commands::save_settings_shown,
             commands::save_addons,
             commands::save_max_combinations,
         ])

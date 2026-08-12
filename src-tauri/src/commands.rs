@@ -250,6 +250,11 @@ pub fn save_language(language: String) {
 }
 
 #[tauri::command]
+pub fn save_settings_shown() {
+    layout::save_settings_shown();
+}
+
+#[tauri::command]
 pub fn save_addons(addons: Vec<String>) {
     layout::save_addons(&addons);
 }

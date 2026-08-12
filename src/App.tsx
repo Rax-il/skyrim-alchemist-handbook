@@ -86,6 +86,15 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
       setEnabledAddons(l.enabled_addons);
       setMaxCombinations(l.max_combinations);
       setLanguage(l.language);
+      // Новая установка (settings.json ещё не было) — открываем "Настройки"
+      // сразу, чтобы пользователь на нерусском языке сходу увидел выбор
+      // языка, а не искал его в меню сам. Флаг помечается сразу, а не при
+      // закрытии окна, — иначе при выходе без "Применить" оно всплывало бы
+      // на каждом следующем запуске.
+      if (!l.settings_shown) {
+        setSettingsOpen(true);
+        api.saveSettingsShown();
+      }
     });
   }, []);
 
