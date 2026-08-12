@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CloseButton, Modal, Select, Text, Textarea } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import portrait from "../assets/thanks-portrait.png";
 import ethereumQr from "../assets/donation-ethereum-qr.png";
 import ethereumBanner from "../assets/donation-ethereum-metamask.png";
@@ -14,7 +15,7 @@ interface Props {
 
 interface DonationOption {
   value: string;
-  label: string;
+  labelKey: string;
   qrSrc: string;
   address: string;
   bannerSrc: string;
@@ -24,35 +25,33 @@ interface DonationOption {
 const DONATION_OPTIONS: DonationOption[] = [
   {
     value: "ethereum",
-    label: "Сеть Ethereum",
+    labelKey: "thanksModal.networkEthereum",
     qrSrc: ethereumQr,
     address: "0x0ce4e6492Be3C088bC13E2ba74Ffe0EE61514995",
     bannerSrc: ethereumBanner,
   },
   {
     value: "solana",
-    label: "Сеть Solana",
+    labelKey: "thanksModal.networkSolana",
     qrSrc: solanaQr,
     address: "8rcbGs2SS4Zm9gGYucqWQmrnTx5BdDgDPg1LvbiNXJwe",
     bannerSrc: ethereumBanner,
   },
   {
     value: "arbitrum",
-    label: "Сеть Arbitrum",
+    labelKey: "thanksModal.networkArbitrum",
     qrSrc: arbitrumQr,
     address: "0x0ce4e6492Be3C088bC13E2ba74Ffe0EE61514995",
     bannerSrc: ethereumBanner,
   },
   {
     value: "tron",
-    label: "Сеть Tron",
+    labelKey: "thanksModal.networkTron",
     qrSrc: tronQr,
     address: "TTRwtz3B7dBjwhUowFuqR83AGdrwRxAXuu",
     bannerSrc: ethereumBanner,
   },
 ];
-
-const EMPTY_OPTION = "— не выбрано —";
 
 // +20 к THANKS_WIDTH и -10 к DIVIDER_OFFSET вместе расширяют ТОЛЬКО правую
 // часть окна на 20px (левая картинка — DIVIDER_OFFSET + WIDTH/2 —
@@ -72,6 +71,7 @@ const SERVICE_BANNER_HEIGHT = QR_PLACEHOLDER_SIZE / 3;
 const DIVIDER_OFFSET = 30;
 
 export function ThanksModal({ opened, onClose }: Props) {
+  const { t } = useTranslation();
   const [donation, setDonation] = useState<string | null>(DONATION_OPTIONS[0]?.value ?? null);
   const selected = DONATION_OPTIONS.find((o) => o.value === donation) ?? null;
 
@@ -91,7 +91,7 @@ export function ThanksModal({ opened, onClose }: Props) {
       <div style={{ position: "relative", width: "100%", height: THANKS_HEIGHT, display: "flex" }}>
         <CloseButton
           onClick={onClose}
-          aria-label="Закрыть"
+          aria-label={t("common.close")}
           style={{
             position: "absolute",
             top: 6,
@@ -127,13 +127,13 @@ export function ThanksModal({ opened, onClose }: Props) {
           }}
         >
           <Text size="sm" fw={600} ta="center">
-            Автор благодарен Вам за поддержку!
+            {t("thanksModal.thankYouText")}
           </Text>
 
           <Select
-            label="Вариант доната"
-            placeholder={EMPTY_OPTION}
-            data={DONATION_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            label={t("thanksModal.donationVariantLabel")}
+            placeholder={t("common.notSelected")}
+            data={DONATION_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
             value={donation}
             onChange={setDonation}
             clearable

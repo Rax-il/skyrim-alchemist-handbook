@@ -91,5 +91,13 @@
     "pairsHint": "顯示能產生最多效果數的兩種材料組合。（依循「全部」/「強化效果」/「毒藥」篩選器。）",
     "triplesButton": "三重組合",
     "triplesHint": "顯示能產生最多效果數的三種材料組合。（依循「全部」/「強化效果」/「毒藥」篩選器。）"
+  },
+  "thanksModal": {
+    "thankYouText": "作者感謝您的支持！",
+    "donationVariantLabel": "贊助方式",
+    "networkEthereum": "Ethereum 網路",
+    "networkSolana": "Solana 網路",
+    "networkArbitrum": "Arbitrum 網路",
+    "networkTron": "Tron 網路"
   }
 }

@@ -93,5 +93,13 @@
     "pairsHint": "Zeigt Kombinationen aus zwei Zutaten, die die maximale Anzahl an Effekten ergeben. (Berücksichtigt den Filter „Alle“/„Verbesserungen“/„Gifte“.)",
     "triplesButton": "Dreier-Kombinationen",
     "triplesHint": "Zeigt Kombinationen aus drei Zutaten, die die maximale Anzahl an Effekten ergeben. (Berücksichtigt den Filter „Alle“/„Verbesserungen“/„Gifte“.)"
+  },
+  "thanksModal": {
+    "thankYouText": "Der Autor dankt Ihnen für Ihre Unterstützung!",
+    "donationVariantLabel": "Spendenoption",
+    "networkEthereum": "Ethereum-Netzwerk",
+    "networkSolana": "Solana-Netzwerk",
+    "networkArbitrum": "Arbitrum-Netzwerk",
+    "networkTron": "Tron-Netzwerk"
   }
 }

@@ -97,5 +97,13 @@
     "pairsHint": "Wyświetla kombinacje dwóch składników dające maksymalną liczbę efektów. (Uwzględnia filtr „Wszystkie”/„Ulepszenia”/„Trucizny”.)",
     "triplesButton": "Kombinacje trójek",
     "triplesHint": "Wyświetla kombinacje trzech składników dające maksymalną liczbę efektów. (Uwzględnia filtr „Wszystkie”/„Ulepszenia”/„Trucizny”.)"
+  },
+  "thanksModal": {
+    "thankYouText": "Autor dziękuje za wsparcie!",
+    "donationVariantLabel": "Opcja wsparcia",
+    "networkEthereum": "Sieć Ethereum",
+    "networkSolana": "Sieć Solana",
+    "networkArbitrum": "Sieć Arbitrum",
+    "networkTron": "Sieć Tron"
   }
 }

@@ -91,5 +91,13 @@
     "pairsHint": "最大数の効果を持つ2つの材料の組み合わせを表示します。（「すべて」/「強化効果」/「毒」フィルターに従います。）",
     "triplesButton": "トリプル組み合わせ",
     "triplesHint": "最大数の効果を持つ3つの材料の組み合わせを表示します。（「すべて」/「強化効果」/「毒」フィルターに従います。）"
+  },
+  "thanksModal": {
+    "thankYouText": "作者はあなたのご支援に感謝します！",
+    "donationVariantLabel": "寄付方法",
+    "networkEthereum": "Ethereumネットワーク",
+    "networkSolana": "Solanaネットワーク",
+    "networkArbitrum": "Arbitrumネットワーク",
+    "networkTron": "Tronネットワーク"
   }
 }

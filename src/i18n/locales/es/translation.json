@@ -93,5 +93,13 @@
     "pairsHint": "Muestra combinaciones de dos ingredientes que dan el máximo número de efectos. (Respeta el filtro «Todas»/«Mejoras»/«Venenos».)",
     "triplesButton": "Combinaciones por tríos",
     "triplesHint": "Muestra combinaciones de tres ingredientes que dan el máximo número de efectos. (Respeta el filtro «Todas»/«Mejoras»/«Venenos».)"
+  },
+  "thanksModal": {
+    "thankYouText": "¡El autor te agradece tu apoyo!",
+    "donationVariantLabel": "Opción de donación",
+    "networkEthereum": "Red Ethereum",
+    "networkSolana": "Red Solana",
+    "networkArbitrum": "Red Arbitrum",
+    "networkTron": "Red Tron"
   }
 }

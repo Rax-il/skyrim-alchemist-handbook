@@ -93,5 +93,13 @@
     "pairsHint": "Show combinations of two ingredients that give the maximum number of effects. (Respects the \"All\"/\"Buffs\"/\"Poisons\" filter.)",
     "triplesButton": "Triple Combinations",
     "triplesHint": "Show combinations of three ingredients that give the maximum number of effects. (Respects the \"All\"/\"Buffs\"/\"Poisons\" filter.)"
+  },
+  "thanksModal": {
+    "thankYouText": "The author thanks you for your support!",
+    "donationVariantLabel": "Donation Option",
+    "networkEthereum": "Ethereum Network",
+    "networkSolana": "Solana Network",
+    "networkArbitrum": "Arbitrum Network",
+    "networkTron": "Tron Network"
   }
 }

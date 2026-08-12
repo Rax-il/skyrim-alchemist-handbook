@@ -93,5 +93,13 @@
     "pairsHint": "Afficher les combinaisons de deux ingrédients donnant le plus grand nombre d'effets. (Respecte le filtre « Toutes »/« Améliorations »/« Poisons ».)",
     "triplesButton": "Combinaisons par trois",
     "triplesHint": "Afficher les combinaisons de trois ingrédients donnant le plus grand nombre d'effets. (Respecte le filtre « Toutes »/« Améliorations »/« Poisons ».)"
+  },
+  "thanksModal": {
+    "thankYouText": "L'auteur vous remercie pour votre soutien !",
+    "donationVariantLabel": "Option de don",
+    "networkEthereum": "Réseau Ethereum",
+    "networkSolana": "Réseau Solana",
+    "networkArbitrum": "Réseau Arbitrum",
+    "networkTron": "Réseau Tron"
   }
 }

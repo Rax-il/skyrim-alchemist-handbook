@@ -93,5 +93,13 @@
     "pairsHint": "Mostra le combinazioni di due ingredienti che danno il numero massimo di effetti. (Rispetta il filtro «Tutte»/«Miglioramenti»/«Veleni».)",
     "triplesButton": "Combinazioni in tripletta",
     "triplesHint": "Mostra le combinazioni di tre ingredienti che danno il numero massimo di effetti. (Rispetta il filtro «Tutte»/«Miglioramenti»/«Veleni».)"
+  },
+  "thanksModal": {
+    "thankYouText": "L'autore ti ringrazia per il tuo supporto!",
+    "donationVariantLabel": "Opzione di donazione",
+    "networkEthereum": "Rete Ethereum",
+    "networkSolana": "Rete Solana",
+    "networkArbitrum": "Rete Arbitrum",
+    "networkTron": "Rete Tron"
   }
 }
