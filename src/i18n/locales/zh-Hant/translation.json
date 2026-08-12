@@ -53,5 +53,29 @@
     "errorDuplicateProperties": "材料的屬性不可重複。",
     "savedText": "變更已儲存。",
     "deletedText": "材料已刪除。"
+  },
+  "settingsModal": {
+    "title": "設定",
+    "languageLabel": "語言",
+    "scaleLabel": "縮放",
+    "scaleSmall": "小",
+    "scaleNormal": "正常",
+    "scaleLarge": "大",
+    "themeLabel": "配色主題",
+    "themeAuto": "系統",
+    "themeLight": "淺色",
+    "themeDark": "深色",
+    "maxCombinationsLabel": "最大組合數",
+    "maxCombinationsHint": "按下「配對組合」和「三重組合」按鈕時顯示的材料組合數量",
+    "addonsLabel": "遊戲追加內容",
+    "applyButton": "套用",
+    "languageWarningText": "您有手動新增的材料——它們僅在建立時所用的語言下可見。變更語言後，它們將從清單中消失（不會被刪除，切換回原語言後會重新出現）。是否繼續?"
+  },
+  "addons": {
+    "baseGame": "基礎遊戲",
+    "fishing": "釣魚",
+    "saintsAndSeducers": "聖徒與誘惑者",
+    "plagueOfTheDead": "死者瘟疫",
+    "userAdded": "使用者新增"
   }
 }

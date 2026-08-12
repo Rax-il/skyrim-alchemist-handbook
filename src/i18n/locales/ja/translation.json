@@ -53,5 +53,29 @@
     "errorDuplicateProperties": "材料の特性を重複させることはできません。",
     "savedText": "変更を保存しました。",
     "deletedText": "材料を削除しました。"
+  },
+  "settingsModal": {
+    "title": "設定",
+    "languageLabel": "言語",
+    "scaleLabel": "スケール",
+    "scaleSmall": "小",
+    "scaleNormal": "標準",
+    "scaleLarge": "大",
+    "themeLabel": "カラーテーマ",
+    "themeAuto": "システム",
+    "themeLight": "ライト",
+    "themeDark": "ダーク",
+    "maxCombinationsLabel": "最大組み合わせ数",
+    "maxCombinationsHint": "「ペア組み合わせ」および「トリプル組み合わせ」ボタンをクリックしたときに表示される材料の組み合わせ数",
+    "addonsLabel": "ゲーム追加コンテンツ",
+    "applyButton": "適用",
+    "languageWarningText": "手動で追加した材料があります。これらは作成時の言語でのみ表示されます。言語を変更すると一覧から消えます（削除はされません。以前の言語に戻すと再表示されます）。続行しますか?"
+  },
+  "addons": {
+    "baseGame": "ベースゲーム",
+    "fishing": "釣り",
+    "saintsAndSeducers": "聖人と誘惑者",
+    "plagueOfTheDead": "死者の疫病",
+    "userAdded": "ユーザー追加"
   }
 }

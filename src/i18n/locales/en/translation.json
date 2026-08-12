@@ -55,5 +55,29 @@
     "errorDuplicateProperties": "The ingredient's properties must not repeat.",
     "savedText": "Changes saved.",
     "deletedText": "Ingredient deleted."
+  },
+  "settingsModal": {
+    "title": "Settings",
+    "languageLabel": "Language",
+    "scaleLabel": "Scale",
+    "scaleSmall": "Small",
+    "scaleNormal": "Normal",
+    "scaleLarge": "Large",
+    "themeLabel": "Color Theme",
+    "themeAuto": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "maxCombinationsLabel": "Max. Combinations",
+    "maxCombinationsHint": "The number of ingredient combinations shown when clicking the \"Pair Combinations\" and \"Triple Combinations\" buttons",
+    "addonsLabel": "Game Add-ons",
+    "applyButton": "Apply",
+    "languageWarningText": "You have manually added ingredients — they're only visible in the language they were created in. After changing the language, they'll disappear from the lists (nothing is deleted — they'll reappear if you switch back to the previous language). Continue?"
+  },
+  "addons": {
+    "baseGame": "Base Game",
+    "fishing": "Fishing",
+    "saintsAndSeducers": "Saints & Seducers",
+    "plagueOfTheDead": "Plague of the Dead",
+    "userAdded": "User-added"
   }
 }

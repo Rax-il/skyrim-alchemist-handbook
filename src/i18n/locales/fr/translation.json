@@ -55,5 +55,29 @@
     "errorDuplicateProperties": "Les propriétés de l'ingrédient ne doivent pas se répéter.",
     "savedText": "Modifications enregistrées.",
     "deletedText": "Ingrédient supprimé."
+  },
+  "settingsModal": {
+    "title": "Paramètres",
+    "languageLabel": "Langue",
+    "scaleLabel": "Échelle",
+    "scaleSmall": "Petite",
+    "scaleNormal": "Normale",
+    "scaleLarge": "Grande",
+    "themeLabel": "Thème de couleur",
+    "themeAuto": "Système",
+    "themeLight": "Clair",
+    "themeDark": "Sombre",
+    "maxCombinationsLabel": "Nb max. de combinaisons",
+    "maxCombinationsHint": "Le nombre de combinaisons d'ingrédients affiché en cliquant sur les boutons « Combinaisons par paires » et « Combinaisons par trois »",
+    "addonsLabel": "Extensions du jeu",
+    "applyButton": "Appliquer",
+    "languageWarningText": "Vous avez des ingrédients ajoutés manuellement — ils ne sont visibles que dans la langue dans laquelle ils ont été créés. Après le changement de langue, ils disparaîtront des listes (rien n'est supprimé — ils réapparaîtront si vous revenez à la langue précédente). Continuer ?"
+  },
+  "addons": {
+    "baseGame": "Jeu de base",
+    "fishing": "Pêche",
+    "saintsAndSeducers": "Saints et Séducteurs",
+    "plagueOfTheDead": "La Peste des morts",
+    "userAdded": "Ajouté par l'utilisateur"
   }
 }

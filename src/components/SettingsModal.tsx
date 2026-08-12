@@ -12,6 +12,7 @@ import {
   useMantineColorScheme,
 } from "@mantine/core";
 import type { MantineColorScheme } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import { api } from "../lib/api";
 import {
@@ -64,6 +65,17 @@ const SCALE_OPTIONS: AppScaleName[] = ["Мелкий", "Нормальный", "
 const THEME_OPTIONS = ["Системная", "Светлая", "Тёмная", "Skyrim"];
 const SKYRIM_LABEL = "Skyrim";
 
+// value остаётся русским (персистится в alchemist_settings.json и
+// валидируется на Rust-стороне, см. Global Constraints плана) — переводится
+// только label в Select.
+const TRANSLATABLE_ADDON_KEYS: Partial<Record<AddonId, string>> = {
+  base_game: "addons.baseGame",
+  fishing: "addons.fishing",
+  saints_and_seducers: "addons.saintsAndSeducers",
+  plague_of_the_dead: "addons.plagueOfTheDead",
+  user_added: "addons.userAdded",
+};
+
 // Соответствие подписей в списке и значений MantineColorScheme.
 const THEME_LABEL_BY_SCHEME: Record<MantineColorScheme, string> = {
   auto: "Системная",
@@ -90,7 +102,13 @@ export function SettingsModal({
   maxCombinations,
   onMaxCombinationsChange,
 }: Props) {
+  const { t } = useTranslation();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
+
+  function addonLabel(id: AddonId): string {
+    const key = TRANSLATABLE_ADDON_KEYS[id];
+    return key ? t(key) : ADDON_LABELS[id];
+  }
 
   const [scale, setScale] = useState<AppScaleName>(appScale);
   const [language, setLanguage] = useState<string>(currentLanguage);
@@ -177,7 +195,7 @@ export function SettingsModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title="Настройки"
+      title={t("settingsModal.title")}
       padding={0}
       size={SETTINGS_WIDTH}
       centered
@@ -195,7 +213,7 @@ export function SettingsModal({
           <div style={{ width: scaled(LEFT_WIDTH), flexShrink: 0, padding: scaled(16) }}>
             <Stack gap="md">
               <Select
-                label="Язык"
+                label={t("settingsModal.languageLabel")}
                 data={LANGUAGE_OPTIONS}
                 value={language}
                 onChange={(v) => setLanguage(v ?? language)}
@@ -203,16 +221,34 @@ export function SettingsModal({
                 comboboxProps={{ withinPortal: true }}
               />
               <Select
-                label="Масштаб"
-                data={SCALE_OPTIONS}
+                label={t("settingsModal.scaleLabel")}
+                data={SCALE_OPTIONS.map((v) => ({
+                  value: v,
+                  label:
+                    v === "Мелкий"
+                      ? t("settingsModal.scaleSmall")
+                      : v === "Крупный"
+                        ? t("settingsModal.scaleLarge")
+                        : t("settingsModal.scaleNormal"),
+                }))}
                 value={scale}
                 onChange={(v) => setScale((v as AppScaleName | null) ?? scale)}
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}
               />
               <Select
-                label="Цветовая тема"
-                data={THEME_OPTIONS}
+                label={t("settingsModal.themeLabel")}
+                data={THEME_OPTIONS.map((v) => ({
+                  value: v,
+                  label:
+                    v === SKYRIM_LABEL
+                      ? SKYRIM_LABEL
+                      : v === "Светлая"
+                        ? t("settingsModal.themeLight")
+                        : v === "Тёмная"
+                          ? t("settingsModal.themeDark")
+                          : t("settingsModal.themeAuto"),
+                }))}
                 value={theme}
                 onChange={(v) => setTheme(v ?? theme)}
                 allowDeselect={false}
@@ -221,8 +257,8 @@ export function SettingsModal({
               <TextInput
                 label={
                   <Group gap={6} align="center">
-                    <span>Макс. кол-во сочетаний</span>
-                    <HintIcon label="Количество комбинаций ингредиентов, отображаемое при нажатии на кнопки «Парные сочетания» и «Тройные сочетания»" />
+                    <span>{t("settingsModal.maxCombinationsLabel")}</span>
+                    <HintIcon label={t("settingsModal.maxCombinationsHint")} />
                   </Group>
                 }
                 value={maxCombinationsInput}
@@ -243,7 +279,7 @@ export function SettingsModal({
             }}
           >
             <Text size="xs" fw={700} p="xs" pb={4}>
-              Дополнения к игре
+              {t("settingsModal.addonsLabel")}
             </Text>
             <ScrollArea flex={1} px="xs">
               <Stack gap={6}>
@@ -252,7 +288,7 @@ export function SettingsModal({
                     key={id}
                     size="xs"
                     color={id === "base_game" ? "yellow" : undefined}
-                    label={ADDON_LABELS[id]}
+                    label={addonLabel(id)}
                     checked={checkedAddons.includes(id)}
                     onChange={(e) => {
                       const checked = e.currentTarget.checked;
@@ -278,27 +314,24 @@ export function SettingsModal({
           }}
         >
           <Button variant="default" onClick={onClose}>
-            Отмена
+            {t("common.cancel")}
           </Button>
-          <Button onClick={handleApply}>Применить</Button>
+          <Button onClick={handleApply}>{t("settingsModal.applyButton")}</Button>
         </Group>
       </div>
 
       <Modal
         opened={languageWarningOpen}
         onClose={() => setLanguageWarningOpen(false)}
-        title="Подтверждение"
+        title={t("common.confirmTitle")}
         size="sm"
       >
         <Text size="sm" mb="md">
-          У вас есть ингредиенты, добавленные вручную — они видны только на
-          языке, на котором были созданы. После смены языка они пропадут из
-          списков (ничего не удаляется — снова появятся, если вернуться на
-          прежний язык). Продолжить?
+          {t("settingsModal.languageWarningText")}
         </Text>
         <Group justify="flex-end">
           <Button variant="default" onClick={() => setLanguageWarningOpen(false)}>
-            Отмена
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={() => {
@@ -306,7 +339,7 @@ export function SettingsModal({
               applyAll();
             }}
           >
-            Продолжить
+            {t("common.continue")}
           </Button>
         </Group>
       </Modal>

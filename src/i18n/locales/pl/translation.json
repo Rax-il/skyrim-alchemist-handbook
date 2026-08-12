@@ -59,5 +59,29 @@
     "errorDuplicateProperties": "Właściwości składnika nie mogą się powtarzać.",
     "savedText": "Zmiany zapisane.",
     "deletedText": "Składnik usunięty."
+  },
+  "settingsModal": {
+    "title": "Ustawienia",
+    "languageLabel": "Język",
+    "scaleLabel": "Skala",
+    "scaleSmall": "Mała",
+    "scaleNormal": "Normalna",
+    "scaleLarge": "Duża",
+    "themeLabel": "Motyw kolorystyczny",
+    "themeAuto": "Systemowy",
+    "themeLight": "Jasny",
+    "themeDark": "Ciemny",
+    "maxCombinationsLabel": "Maks. liczba kombinacji",
+    "maxCombinationsHint": "Liczba kombinacji składników wyświetlana po kliknięciu przycisków „Kombinacje par” i „Kombinacje trójek”",
+    "addonsLabel": "Dodatki do gry",
+    "applyButton": "Zastosuj",
+    "languageWarningText": "Masz ręcznie dodane składniki — są widoczne tylko w języku, w którym zostały utworzone. Po zmianie języka znikną z list (nic nie zostanie usunięte — pojawią się ponownie po powrocie do poprzedniego języka). Kontynuować?"
+  },
+  "addons": {
+    "baseGame": "Podstawowa gra",
+    "fishing": "Wędkarstwo",
+    "saintsAndSeducers": "Święci i Uwodziciele",
+    "plagueOfTheDead": "Zaraza umarłych",
+    "userAdded": "Dodane przez użytkownika"
   }
 }

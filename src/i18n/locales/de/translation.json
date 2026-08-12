@@ -55,5 +55,29 @@
     "errorDuplicateProperties": "Die Eigenschaften der Zutat dürfen sich nicht wiederholen.",
     "savedText": "Änderungen gespeichert.",
     "deletedText": "Zutat gelöscht."
+  },
+  "settingsModal": {
+    "title": "Einstellungen",
+    "languageLabel": "Sprache",
+    "scaleLabel": "Skalierung",
+    "scaleSmall": "Klein",
+    "scaleNormal": "Normal",
+    "scaleLarge": "Groß",
+    "themeLabel": "Farbschema",
+    "themeAuto": "System",
+    "themeLight": "Hell",
+    "themeDark": "Dunkel",
+    "maxCombinationsLabel": "Max. Kombinationen",
+    "maxCombinationsHint": "Die Anzahl der Zutatenkombinationen, die beim Klicken auf die Schaltflächen „Paar-Kombinationen“ und „Dreier-Kombinationen“ angezeigt wird",
+    "addonsLabel": "Spiel-Erweiterungen",
+    "applyButton": "Übernehmen",
+    "languageWarningText": "Sie haben manuell hinzugefügte Zutaten — sie sind nur in der Sprache sichtbar, in der sie erstellt wurden. Nach dem Sprachwechsel verschwinden sie aus den Listen (nichts wird gelöscht — sie erscheinen wieder, wenn Sie zur vorherigen Sprache zurückwechseln). Fortfahren?"
+  },
+  "addons": {
+    "baseGame": "Basisspiel",
+    "fishing": "Angeln",
+    "saintsAndSeducers": "Heilige und Verführer",
+    "plagueOfTheDead": "Seuche der Toten",
+    "userAdded": "Vom Benutzer hinzugefügt"
   }
 }
