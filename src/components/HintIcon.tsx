@@ -7,6 +7,7 @@
 
 import { ActionIcon, Tooltip } from "@mantine/core";
 import { IconHelpCircle } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 
 interface HintIconProps {
   label: string;
@@ -18,6 +19,7 @@ interface HintIconProps {
 }
 
 export function HintIcon({ label, inheritColor = false }: HintIconProps) {
+  const { t } = useTranslation();
   return (
     <Tooltip label={label} multiline w={260} withArrow>
       <ActionIcon
@@ -25,7 +27,7 @@ export function HintIcon({ label, inheritColor = false }: HintIconProps) {
         color={inheritColor ? undefined : "gray"}
         size="xs"
         onClick={(e) => e.stopPropagation()}
-        aria-label="Подсказка"
+        aria-label={t("hintIcon.ariaLabel")}
         style={inheritColor ? { color: "inherit" } : undefined}
       >
         <IconHelpCircle size={14} />

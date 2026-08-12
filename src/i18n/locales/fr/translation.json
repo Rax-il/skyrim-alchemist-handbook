@@ -107,5 +107,8 @@
     "authorLabel": "Auteur : {{author}}",
     "summary": "Un guide des ingrédients et combinaisons alchimiques de Skyrim : recherchez les effets voulus et trouvez les ingrédients correspondants selon leurs propriétés.",
     "donateButton": "Faire un don à l'auteur"
+  },
+  "hintIcon": {
+    "ariaLabel": "Astuce"
   }
 }

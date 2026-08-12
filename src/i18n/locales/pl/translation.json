@@ -111,5 +111,8 @@
     "authorLabel": "Autor: {{author}}",
     "summary": "Poradnik po składnikach i kombinacjach alchemicznych w Skyrim: wyszukuj potrzebne efekty i dobieraj składniki według właściwości.",
     "donateButton": "Wesprzyj autora"
+  },
+  "hintIcon": {
+    "ariaLabel": "Podpowiedź"
   }
 }

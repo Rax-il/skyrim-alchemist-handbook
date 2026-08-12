@@ -1,4 +1,5 @@
 import { Group, Image, ScrollArea, Stack, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import { GOOD_QUALITY_SIZE, useAdaptiveImageSize } from "../lib/useAdaptiveImageSize";
 
 export type BottomMode =
@@ -19,6 +20,7 @@ interface Props {
 const PREVIEW_BOX = GOOD_QUALITY_SIZE;
 
 export function BottomPane({ header, results, mode }: Props) {
+  const { t } = useTranslation();
   const imageDataUrl = mode.kind === "media" ? mode.imageDataUrl : null;
   const imageSize = useAdaptiveImageSize(imageDataUrl);
 
@@ -62,7 +64,7 @@ export function BottomPane({ header, results, mode }: Props) {
             {mode.imageDataUrl ? (
               <Image src={mode.imageDataUrl} w={imageSize} h={imageSize} fit="contain" />
             ) : (
-              <Text c="dimmed">No image</Text>
+              <Text c="dimmed">{t("common.noImage")}</Text>
             )}
           </div>
           <ScrollArea flex={1} h="100%">
