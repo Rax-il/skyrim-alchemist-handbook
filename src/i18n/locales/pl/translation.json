@@ -1,3 +1,15 @@
 {
-  "appTitle": "Podręcznik alchemika"
+  "appTitle": "Podręcznik alchemika",
+  "common": {
+    "error": "Błąd",
+    "attention": "Uwaga",
+    "done": "Gotowe",
+    "confirmTitle": "Potwierdzenie",
+    "cancel": "Anuluj",
+    "continue": "Kontynuuj",
+    "close": "Zamknij",
+    "notSelected": "— nie wybrano —",
+    "noImage": "Brak obrazu",
+    "propertyLabel": "Właściwość {{index}}"
+  }
 }

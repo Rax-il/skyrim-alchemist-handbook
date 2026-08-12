@@ -1,3 +1,15 @@
 {
-  "appTitle": "煉金術士手冊"
+  "appTitle": "煉金術士手冊",
+  "common": {
+    "error": "錯誤",
+    "attention": "注意",
+    "done": "完成",
+    "confirmTitle": "確認",
+    "cancel": "取消",
+    "continue": "繼續",
+    "close": "關閉",
+    "notSelected": "— 未選擇 —",
+    "noImage": "無圖片",
+    "propertyLabel": "屬性{{index}}"
+  }
 }

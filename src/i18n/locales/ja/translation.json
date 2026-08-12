@@ -1,3 +1,15 @@
 {
-  "appTitle": "錬金術師の手引き"
+  "appTitle": "錬金術師の手引き",
+  "common": {
+    "error": "エラー",
+    "attention": "注意",
+    "done": "完了",
+    "confirmTitle": "確認",
+    "cancel": "キャンセル",
+    "continue": "続行",
+    "close": "閉じる",
+    "notSelected": "— 未選択 —",
+    "noImage": "画像なし",
+    "propertyLabel": "特性{{index}}"
+  }
 }

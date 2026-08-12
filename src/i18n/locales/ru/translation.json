@@ -1,3 +1,15 @@
 {
-  "appTitle": "Справочник алхимика"
+  "appTitle": "Справочник алхимика",
+  "common": {
+    "error": "Ошибка",
+    "attention": "Внимание",
+    "done": "Готово",
+    "confirmTitle": "Подтверждение",
+    "cancel": "Отмена",
+    "continue": "Продолжить",
+    "close": "Закрыть",
+    "notSelected": "— не выбрано —",
+    "noImage": "Нет изображения",
+    "propertyLabel": "Свойство {{index}}"
+  }
 }

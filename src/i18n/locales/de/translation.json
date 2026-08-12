@@ -1,3 +1,15 @@
 {
-  "appTitle": "Alchemisten-Handbuch"
+  "appTitle": "Alchemisten-Handbuch",
+  "common": {
+    "error": "Fehler",
+    "attention": "Achtung",
+    "done": "Fertig",
+    "confirmTitle": "Bestätigung",
+    "cancel": "Abbrechen",
+    "continue": "Fortfahren",
+    "close": "Schließen",
+    "notSelected": "— nicht ausgewählt —",
+    "noImage": "Kein Bild",
+    "propertyLabel": "Eigenschaft {{index}}"
+  }
 }

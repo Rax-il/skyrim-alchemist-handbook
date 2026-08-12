@@ -1,3 +1,15 @@
 {
-  "appTitle": "Manuel de l'alchimiste"
+  "appTitle": "Manuel de l'alchimiste",
+  "common": {
+    "error": "Erreur",
+    "attention": "Attention",
+    "done": "Terminé",
+    "confirmTitle": "Confirmation",
+    "cancel": "Annuler",
+    "continue": "Continuer",
+    "close": "Fermer",
+    "notSelected": "— non sélectionné —",
+    "noImage": "Aucune image",
+    "propertyLabel": "Propriété {{index}}"
+  }
 }

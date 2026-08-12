@@ -1,3 +1,15 @@
 {
-  "appTitle": "Alchemist's Handbook"
+  "appTitle": "Alchemist's Handbook",
+  "common": {
+    "error": "Error",
+    "attention": "Attention",
+    "done": "Done",
+    "confirmTitle": "Confirmation",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "close": "Close",
+    "notSelected": "— not selected —",
+    "noImage": "No image",
+    "propertyLabel": "Property {{index}}"
+  }
 }
