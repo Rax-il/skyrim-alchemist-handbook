@@ -47,7 +47,7 @@ fn default_scale() -> String {
 }
 
 fn default_language() -> String {
-    "ru".to_string()
+    "en".to_string()
 }
 
 /// "Все дополнения включены" — состояние по умолчанию для только что

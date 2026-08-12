@@ -22,7 +22,7 @@ i18n.use(initReactI18next).init({
     ja: { translation: ja },
     "zh-Hant": { translation: zhHant },
   },
-  lng: "ru",
+  lng: "en",
   fallbackLng: "ru",
   interpolation: { escapeValue: false },
 });

@@ -22,7 +22,7 @@ import type { AddonId } from "./lib/addons";
 
 const HANDLE_SIZE = 8;
 const DEFAULT_MAX_COMBINATIONS = 100;
-const DEFAULT_LANGUAGE = "ru";
+const DEFAULT_LANGUAGE = "en";
 
 interface Props {
   appTheme: AppThemeName;
