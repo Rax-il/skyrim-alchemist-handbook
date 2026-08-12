@@ -1,4 +1,5 @@
 import { Checkbox, ScrollArea, Stack, Text } from "@mantine/core";
+import { useTranslation } from "react-i18next";
 import type { ComponentNameInfo } from "../lib/api";
 
 export type TopMode =
@@ -13,10 +14,12 @@ interface Props {
 }
 
 export function TopPane({ mode, enabledComponents, onToggleComponent }: Props) {
+  const { t } = useTranslation();
+
   if (mode.kind === "empty") {
     return (
       <Text size="sm" c="dimmed" p="xs">
-        Список ингредиентов (0)
+        {t("topPane.ingredientListLabel", { count: 0 })}
       </Text>
     );
   }
@@ -25,7 +28,7 @@ export function TopPane({ mode, enabledComponents, onToggleComponent }: Props) {
     return (
       <Stack gap={0} h="100%">
         <Text size="sm" fw={700} p="xs" pb={4}>
-          Список ингредиентов ({mode.items.length})
+          {t("topPane.ingredientListLabel", { count: mode.items.length })}
         </Text>
         <ScrollArea flex={1} px="xs">
           <Stack gap={2}>
@@ -46,7 +49,7 @@ export function TopPane({ mode, enabledComponents, onToggleComponent }: Props) {
   return (
     <Stack gap={0} h="100%">
       <Text size="sm" fw={700} p="xs" pb={4}>
-        Свойства компонента ({mode.props.length})
+        {t("topPane.componentPropertiesLabel", { count: mode.props.length })}
       </Text>
       <ScrollArea flex={1} px="xs">
         <Stack gap={2}>

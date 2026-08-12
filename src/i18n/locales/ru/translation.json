@@ -114,5 +114,9 @@
   },
   "hintIcon": {
     "ariaLabel": "Подсказка"
+  },
+  "topPane": {
+    "ingredientListLabel": "Список ингредиентов ({{count}})",
+    "componentPropertiesLabel": "Свойства компонента ({{count}})"
   }
 }

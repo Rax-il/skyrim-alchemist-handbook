@@ -110,5 +110,9 @@
   },
   "hintIcon": {
     "ariaLabel": "Sugerencia"
+  },
+  "topPane": {
+    "ingredientListLabel": "Lista de ingredientes ({{count}})",
+    "componentPropertiesLabel": "Propiedades del ingrediente ({{count}})"
   }
 }

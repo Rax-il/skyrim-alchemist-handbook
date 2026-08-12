@@ -114,5 +114,9 @@
   },
   "hintIcon": {
     "ariaLabel": "Podpowiedź"
+  },
+  "topPane": {
+    "ingredientListLabel": "Lista składników ({{count}})",
+    "componentPropertiesLabel": "Właściwości składnika ({{count}})"
   }
 }

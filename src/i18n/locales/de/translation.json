@@ -110,5 +110,9 @@
   },
   "hintIcon": {
     "ariaLabel": "Hinweis"
+  },
+  "topPane": {
+    "ingredientListLabel": "Zutatenliste ({{count}})",
+    "componentPropertiesLabel": "Zutateneigenschaften ({{count}})"
   }
 }

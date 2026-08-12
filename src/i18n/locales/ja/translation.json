@@ -108,5 +108,9 @@
   },
   "hintIcon": {
     "ariaLabel": "ヒント"
+  },
+  "topPane": {
+    "ingredientListLabel": "材料リスト（{{count}}）",
+    "componentPropertiesLabel": "材料の特性（{{count}}）"
   }
 }

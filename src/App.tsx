@@ -109,34 +109,35 @@ export default function App({ appTheme, onAppThemeChange, scale, onScaleChange }
   }, [sidePanelWidth, splitRatio]);
 
   // --- Синхронизация языка интерфейса с i18next + заголовок окна (Tauri
-  // window title, не React DOM — не переводится через JSX). ---
+  // window title, не React DOM — не переводится через JSX) + список свойств
+  // и список ингредиентов, ограниченный включёнными дополнениями и текущим
+  // языком. Срабатывает при первой загрузке (с дефолтными значениями), при
+  // каждом применении новых настроек в SettingsModal (дополнения ИЛИ язык)
+  // и при смене языка через Настройки. Прежний выбранный компонент и
+  // результаты предыдущего поиска могли ссылаться на теперь скрытые
+  // ингредиенты (другой набор дополнений или язык, в котором их вообще нет
+  // — см. design doc про пользовательские ингредиенты) — сбрасываем оба,
+  // чтобы не показывать стухшие данные; пользователь просто ищет заново.
+  // Важно: i18n.changeLanguage — асинхронная операция, а t()/i18n.t() ниже
+  // должны звать её ПОСЛЕ переключения языка (иначе строки вроде
+  // resultsHeader вычисляются ещё на предыдущем языке и повисают в таком
+  // виде в state до следующего реального обновления данных — был баг,
+  // пойманный пользователем на скриншоте).
   useEffect(() => {
     i18n.changeLanguage(language).then(() => {
       getCurrentWindow().setTitle(i18n.t("appTitle"));
+      api.getProperties(language).then(setProperties);
+      api.getComponentNamesFiltered(enabledAddons, language).then((names) => {
+        setComponentNames(names);
+        setComponentSelect((prev) => (prev !== null && names.some((n) => n.id === prev) ? prev : null));
+      });
+      lastCombosRef.current = [];
+      setEnabledComponents({});
+      setTopMode({ kind: "empty" });
+      setBottomMode({ kind: "list" });
+      setResults([]);
+      setResultsHeader(i18n.t("app.resultsFound", { count: 0 }));
     });
-  }, [language]);
-
-  // --- Список свойств и список ингредиентов, ограниченный включёнными
-  // дополнениями и текущим языком. Срабатывает при первой загрузке (с
-  // дефолтными значениями), при каждом применении новых настроек в
-  // SettingsModal (дополнения ИЛИ язык) и при смене языка через Настройки.
-  // Прежний выбранный компонент и результаты предыдущего поиска могли
-  // ссылаться на теперь скрытые ингредиенты (другой набор дополнений или
-  // язык, в котором их вообще нет — см. design doc про пользовательские
-  // ингредиенты) — сбрасываем оба, чтобы не показывать стухшие данные;
-  // пользователь просто ищет заново.
-  useEffect(() => {
-    api.getProperties(language).then(setProperties);
-    api.getComponentNamesFiltered(enabledAddons, language).then((names) => {
-      setComponentNames(names);
-      setComponentSelect((prev) => (prev !== null && names.some((n) => n.id === prev) ? prev : null));
-    });
-    lastCombosRef.current = [];
-    setEnabledComponents({});
-    setTopMode({ kind: "empty" });
-    setBottomMode({ kind: "list" });
-    setResults([]);
-    setResultsHeader(t("app.resultsFound", { count: 0 }));
   }, [enabledAddons, language]);
 
   function refreshLists() {

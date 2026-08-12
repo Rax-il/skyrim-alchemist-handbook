@@ -108,5 +108,9 @@
   },
   "hintIcon": {
     "ariaLabel": "提示"
+  },
+  "topPane": {
+    "ingredientListLabel": "材料清單（{{count}}）",
+    "componentPropertiesLabel": "材料屬性（{{count}}）"
   }
 }
