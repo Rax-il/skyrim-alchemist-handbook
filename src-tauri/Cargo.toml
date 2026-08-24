@@ -2,6 +2,7 @@
 name = "alchemist"
 version = "0.1.0"
 edition = "2021"
+authors = ["Rax_il"]
 
 [lib]
 name = "alchemist_lib"
