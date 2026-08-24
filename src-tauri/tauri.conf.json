@@ -24,8 +24,7 @@
     }
   },
   "bundle": {
-    "active": true,
-    "targets": ["deb"],
+    "active": false,
     "publisher": "Rax_il",
     "copyright": "© 2026 Rax_il",
     "icon": [
