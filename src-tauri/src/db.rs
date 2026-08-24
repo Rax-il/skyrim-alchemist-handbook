@@ -40,6 +40,7 @@ pub fn ensure_db(path: &Path) -> rusqlite::Result<Connection> {
     migrate_creations(&conn)?;
     migrate_addon_ids(&conn)?;
     migrate_i18n(&conn)?;
+    migrate_property_order(&conn)?;
     Ok(conn)
 }
 
@@ -57,7 +58,8 @@ fn init_db(conn: &Connection) -> rusqlite::Result<()> {
         );
         CREATE TABLE component_properties (
             component_id INTEGER NOT NULL,
-            property_id  INTEGER NOT NULL
+            property_id  INTEGER NOT NULL,
+            sort_order   INTEGER NOT NULL DEFAULT 0
         );",
     )?;
 
@@ -79,11 +81,11 @@ fn init_db(conn: &Connection) -> rusqlite::Result<()> {
             params![name, description],
         )?;
         let component_id = conn.last_insert_rowid();
-        for prop_name in props {
+        for (order, prop_name) in props.iter().enumerate() {
             if let Some(&pid) = prop_id.get(prop_name) {
                 conn.execute(
-                    "INSERT INTO component_properties (component_id, property_id) VALUES (?1, ?2)",
-                    params![component_id, pid],
+                    "INSERT INTO component_properties (component_id, property_id, sort_order) VALUES (?1, ?2, ?3)",
+                    params![component_id, pid, order as i64],
                 )?;
             }
         }
@@ -355,11 +357,11 @@ fn migrate_rare_curios(conn: &Connection) -> rusqlite::Result<()> {
             params![name, RARE_CURIOS_DESCRIPTION],
         )?;
         let component_id = conn.last_insert_rowid();
-        for prop_name in props {
+        for (order, prop_name) in props.iter().enumerate() {
             if let Some(&pid) = prop_id.get(*prop_name) {
                 conn.execute(
-                    "INSERT INTO component_properties (component_id, property_id) VALUES (?1, ?2)",
-                    params![component_id, pid],
+                    "INSERT INTO component_properties (component_id, property_id, sort_order) VALUES (?1, ?2, ?3)",
+                    params![component_id, pid, order as i64],
                 )?;
             }
         }
@@ -416,11 +418,11 @@ fn migrate_creations(conn: &Connection) -> rusqlite::Result<()> {
             params![name, description],
         )?;
         let component_id = conn.last_insert_rowid();
-        for prop_name in props {
+        for (order, prop_name) in props.iter().enumerate() {
             if let Some(&pid) = prop_id.get(*prop_name) {
                 conn.execute(
-                    "INSERT INTO component_properties (component_id, property_id) VALUES (?1, ?2)",
-                    params![component_id, pid],
+                    "INSERT INTO component_properties (component_id, property_id, sort_order) VALUES (?1, ?2, ?3)",
+                    params![component_id, pid, order as i64],
                 )?;
             }
         }
@@ -498,6 +500,54 @@ fn migrate_addon_ids(conn: &Connection) -> rusqlite::Result<()> {
     // Последним — см. комментарий выше про "Гнилая чешуйка"/"Огненный гриб".
     let rare_curios_names: Vec<&str> = RARE_CURIOS_INGREDIENTS.iter().map(|(name, _)| *name).collect();
     set_addon(conn, Addon::RareCurios, &rare_curios_names)?;
+
+    Ok(())
+}
+
+/// До этой миграции component_properties вообще не хранила порядок эффектов —
+/// на экране список всегда шёл по алфавиту (см. старый ORDER BY pt.name в
+/// component_properties()/component_properties_with_types()), из-за чего
+/// порядок эффектов в приложении не совпадал с игровым (INGREDIENTS в
+/// seed_data.rs теперь хранит эффекты именно в игровом порядке — сверено
+/// с fandom-таблицей ингредиентов). Добавляет колонку sort_order и
+/// проставляет её по позиции свойства в INGREDIENTS для уже существующих
+/// БД; свежие БД получают sort_order сразу в init_db.
+fn migrate_property_order(conn: &Connection) -> rusqlite::Result<()> {
+    let mut has_sort_order = false;
+    {
+        let mut stmt = conn.prepare("PRAGMA table_info(component_properties)")?;
+        let mut rows = stmt.query([])?;
+        while let Some(row) = rows.next()? {
+            let name: String = row.get(1)?;
+            if name == "sort_order" {
+                has_sort_order = true;
+            }
+        }
+    }
+    if !has_sort_order {
+        conn.execute(
+            "ALTER TABLE component_properties ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
+
+    let sources: [&[(&str, [&str; 4])]; 3] = [INGREDIENTS, RARE_CURIOS_INGREDIENTS, CREATION_INGREDIENTS];
+    for source in sources {
+        for (name, props) in source {
+            let component_id: Option<i64> = conn
+                .query_row("SELECT id FROM components WHERE name = ?1", params![name], |r| r.get(0))
+                .optional()?;
+            let Some(component_id) = component_id else { continue };
+            for (order, prop_name) in props.iter().enumerate() {
+                conn.execute(
+                    "UPDATE component_properties SET sort_order = ?1
+                     WHERE component_id = ?2
+                       AND property_id = (SELECT id FROM properties WHERE name = ?3)",
+                    params![order as i64, component_id, prop_name],
+                )?;
+            }
+        }
+    }
 
     Ok(())
 }
@@ -597,7 +647,7 @@ pub fn component_properties(conn: &Connection, component_id: i64, lang: &str) ->
          FROM component_properties cp
          JOIN property_translations pt ON pt.property_id = cp.property_id AND pt.lang = ?1
          WHERE cp.component_id = ?2
-         ORDER BY pt.name",
+         ORDER BY cp.sort_order, cp.rowid",
     )?;
     let rows = stmt.query_map(params![lang, component_id], |r| r.get::<_, String>(0))?;
     rows.collect()
@@ -621,7 +671,7 @@ pub fn component_properties_with_types(
          JOIN properties p ON p.id = cp.property_id
          JOIN property_translations pt ON pt.property_id = p.id AND pt.lang = ?1
          WHERE cp.component_id = ?2
-         ORDER BY pt.name",
+         ORDER BY cp.sort_order, cp.rowid",
     )?;
     let rows = stmt.query_map(params![lang, component_id], |r| {
         Ok(PropWithType {
