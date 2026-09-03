@@ -219,6 +219,32 @@ export function SettingsModal({
                 onChange={(v) => setLanguage(v ?? language)}
                 allowDeselect={false}
                 comboboxProps={{ withinPortal: true }}
+                leftSection={
+                  <img
+                    src={LANGUAGE_OPTIONS.find((o) => o.value === language)?.flag}
+                    alt=""
+                    width={18}
+                    height={14}
+                    style={{ objectFit: "cover", borderRadius: 2 }}
+                  />
+                }
+                renderOption={({ option }) => {
+                  const opt = LANGUAGE_OPTIONS.find((o) => o.value === option.value);
+                  return (
+                    <Group gap={8} wrap="nowrap">
+                      {opt && (
+                        <img
+                          src={opt.flag}
+                          alt=""
+                          width={18}
+                          height={14}
+                          style={{ objectFit: "cover", borderRadius: 2, flexShrink: 0 }}
+                        />
+                      )}
+                      <span>{option.label}</span>
+                    </Group>
+                  );
+                }}
               />
               <Select
                 label={t("settingsModal.scaleLabel")}
