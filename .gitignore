@@ -15,3 +15,6 @@ tools/i18n/__pycache__/
 
 # Легаси-артефакт: рантайм всегда кладёт актуальный settings.json рядом с exe.
 /alchemist_settings.json
+
+# Личные настройки редактора Obsidian, не часть проекта.
+docs/.obsidian/
